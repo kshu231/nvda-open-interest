@@ -166,6 +166,13 @@ jobs. GitHub answers `204` when a run has been started.
 
 - The `timer` input tells the daily workflow not to republish when the OCC
   has nothing new, which is most firings.
+- Each run that saves a new day adds a row to `data/occ_arrivals.csv`: the
+  day, when it was saved (Eastern), what started the run and its run number.
+  `scheduler` is the job above, `dispatch` is "Run workflow" or any other
+  caller of GitHub's API, `push` is a change to the code. With the job firing
+  every half hour, the row shows which firing first found the day's numbers,
+  and the firing before it is the last one that did not. Use it to narrow the
+  job's hours.
 - The first job's 9:15 and 16:45 firings fall outside market hours and end
   without publishing.
 - `gcloud scheduler jobs update http --update-headers` replaces every header,
