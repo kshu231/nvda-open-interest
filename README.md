@@ -35,6 +35,7 @@ is standard library.
 | `--allow-stale` | Report what the OCC has even if the previous trading day is not out yet |
 | `--force` | Overwrite a dated CSV whose contents differ |
 | `--no-chart` | Skip the chart |
+| `--rebuild` | Rewrite the web pages from the newest saved day without contacting the OCC |
 
 Exit codes: `0` ok, `1` error, `75` the OCC has not published yet (try later).
 
@@ -84,6 +85,40 @@ The layouts live in `dashboard_template.html` and `history_template.html`;
 edit those, not the generated files. Reload a page after a data pull to see
 the new day.
 
+### Gamma exposure
+
+```bash
+.venv/bin/python nvda_gex.py                      # pull Cboe, write gex_NVDA.json
+.venv/bin/python nvda_gex.py --symbol AAPL        # another underlying
+.venv/bin/python nvda_gex.py --if-open            # only while the market's quotes are live
+```
+
+`nvda_gex.py` pulls Cboe's delayed option chain, saves `gex_NVDA.json` and
+swaps it into `dashboard_NVDA.html` if that page exists. The page's Gamma
+Exposure card then shows net exposure per strike, the gamma profile (net
+exposure if the stock traded at each price) and four levels: spot, call wall,
+put wall and zero gamma. It follows the page's expiration picker and has its
+own strike range and open interest / volume pickers.
+
+- Exposure is dollars per 1% move: gamma x contracts x 100 x spot squared x 1%.
+  Calls count as positive and puts as negative, the usual assumption that
+  dealers are long calls and short puts.
+- Gamma is Black-Scholes, computed in the browser from one implied volatility
+  per strike (the out-of-the-money side's), a 4% rate and time to the 16:00
+  Eastern close on expiration day, floored at 30 minutes.
+- Quotes are 15 minutes delayed. Open interest changes once a day, so between
+  pulls only the stock price and implied volatility move the chart.
+- A pull that fails, or that lacks implied volatility on more than a fifth of
+  the strikes within 10% of spot, exits with an error and keeps the previous
+  snapshot.
+- With `--if-open` nothing is pulled unless the delayed quotes are from today's
+  regular session (about 9:45 to 16:25 Eastern on trading days); otherwise it
+  exits `75` and the last snapshot, normally the close, stands.
+
+A hosted page fetches `gex_NVDA.json` from beside itself every 5 minutes and
+redraws when it is newer; a page opened as a local file keeps the embedded
+copy until the next pull.
+
 ### On a phone, or anywhere
 
 https://kshu231.github.io/nvda-open-interest/ is the same dashboard, hosted
@@ -102,6 +137,28 @@ The page can therefore show a day's close the same evening.
 To run it on demand: the repository's Actions tab, "Daily open interest",
 "Run workflow".
 
+The gamma exposure chart is refreshed every 30 minutes through the market day
+by a second workflow, `.github/workflows/gex.yml` ("Gamma exposure refresh").
+It pulls Cboe, rebuilds both pages from the saved open interest
+(`nvda_oi.py --rebuild`, so the OCC is not asked again) and republishes.
+Outside market hours it does nothing, and the daily workflow carries the
+closing snapshot over when it republishes. A Google Cloud Scheduler job starts
+it, since GitHub's own timer cannot be relied on:
+
+| Setting | Value |
+|---|---|
+| Frequency | `15,45 9-16 * * 1-5` |
+| Time zone | `America/New_York` |
+| Target | HTTP, `POST` |
+| URL | `https://api.github.com/repos/kshu231/nvda-open-interest/actions/workflows/gex.yml/dispatches` |
+| Headers | `Authorization: Bearer TOKEN`, `Accept: application/vnd.github+json`, `Content-Type: application/json` |
+| Body | `{"ref":"main"}` |
+
+`TOKEN` is a fine-grained GitHub personal access token limited to this
+repository with Actions set to read and write. It lives only in the scheduler
+job. GitHub answers `204` when a run has been started. The 9:15 and 16:45
+firings fall outside market hours and end without publishing.
+
 ## Where the numbers come from
 
 - `https://marketdata.theocc.com/series-search?symbolType=U&symbol=NVDA` is a
@@ -115,6 +172,12 @@ To run it on demand: the repository's Actions tab, "Daily open interest",
 - Only standard listed options (product symbol equal to the underlying) are
   counted. FLEX series (`1NVDA`, `2NVDA`) are excluded and their size is shown
   on the "Excluded" line.
+- `https://cdn.cboe.com/api/global/delayed_quotes/options/NVDA.json` is the
+  feed behind Cboe's own delayed quotes page: the stock price and, for every
+  listed contract, bid/ask, implied volatility, greeks, volume and open
+  interest. It is undocumented and could change without notice. Its open
+  interest is the OCC's; each `nvda_gex.py` run reports whether it still
+  matches the newest saved OCC day.
 
 Because series-search carries no date, the script cross-checks it against saved
 history: if the OCC's date has moved on but the series data is identical to the
