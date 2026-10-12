@@ -50,6 +50,22 @@ jobs:
           fi
           [ "$code" -eq 0 ] || exit "$code"
           git add data/*_oi_*.csv
+          # Keep a record of which run brought each new day in, to tune the
+          # scheduler's hours by. The script notes the first save of a day in
+          # availability_log.csv, which is not kept in the repository, so the
+          # file exists here only when this run saved a new day.
+          if [ -f data/availability_log.csv ]; then
+            case "${{ github.event_name }}/${{ inputs.timer }}" in
+              workflow_dispatch/true) started_by=scheduler ;;
+              workflow_dispatch/*)    started_by=dispatch ;;
+              *)                      started_by="${{ github.event_name }}" ;;
+            esac
+            log=data/occ_arrivals.csv
+            [ -f "$log" ] || echo "symbol,asof,saved_at_et,started_by,run_id" > "$log"
+            tail -n +2 data/availability_log.csv | tr -d '\r' \
+              | sed "s/\$/,$started_by,$GITHUB_RUN_ID/" >> "$log"
+            git add "$log"
+          fi
           if git diff --cached --quiet && [ "${{ inputs.timer }}" = "true" ]; then
             echo "Nothing new since the last run; the page stays as it is."
             echo "publish=false" >> "$GITHUB_OUTPUT"
