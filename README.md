@@ -124,40 +124,52 @@ copy until the next pull.
 https://kshu231.github.io/nvda-open-interest/ is the same dashboard, hosted
 by GitHub Pages, and
 https://kshu231.github.io/nvda-open-interest/history_NVDA.html the history.
-GitHub Actions (`.github/workflows/daily.yml`) runs the pull on GitHub's
-servers every 15 minutes on weekday mornings (about 8:00 to 10:00 Eastern).
-The first run that finds a new day commits its CSV to `data/` and republishes
-both pages; the rest change nothing. It does not depend on this Mac.
-GitHub starts scheduled runs late at busy times and often skips them, so
-Claude routines on the owner's account also start the workflow on weekdays:
-in the evening, when the day's numbers usually appear (they were out by 21:06
-Eastern on 2026-10-08), and at 8:15 and 9:25 in the morning, before the open.
-The page can therefore show a day's close the same evening.
+Two GitHub Actions workflows keep them current on GitHub's servers; neither
+depends on this Mac.
 
-To run it on demand: the repository's Actions tab, "Daily open interest",
+`.github/workflows/daily.yml` ("Daily open interest") pulls the OCC. A run
+that finds a new day commits its CSV to `data/` and republishes both pages; a
+timer-started run that finds nothing new changes nothing. It is started
+through the evening, when the day's numbers usually appear (they were out by
+21:06 Eastern on 2026-10-08), so the page can show a day's close the same
+evening, and again before the next open in case the evening missed it.
+
+`.github/workflows/gex.yml` ("Gamma exposure refresh") refreshes the gamma
+exposure chart every 30 minutes through the market day. It pulls Cboe,
+rebuilds both pages from the saved open interest (`nvda_oi.py --rebuild`, so
+the OCC is not asked again) and republishes. Outside market hours it does
+nothing, and the daily workflow carries the closing snapshot over when it
+republishes.
+
+To run either on demand: the repository's Actions tab, the workflow's name,
 "Run workflow".
 
-The gamma exposure chart is refreshed every 30 minutes through the market day
-by a second workflow, `.github/workflows/gex.yml` ("Gamma exposure refresh").
-It pulls Cboe, rebuilds both pages from the saved open interest
-(`nvda_oi.py --rebuild`, so the OCC is not asked again) and republishes.
-Outside market hours it does nothing, and the daily workflow carries the
-closing snapshot over when it republishes. A Google Cloud Scheduler job starts
-it, since GitHub's own timer cannot be relied on:
+#### What starts them
 
-| Setting | Value |
-|---|---|
-| Frequency | `15,45 9-16 * * 1-5` |
-| Time zone | `America/New_York` |
-| Target | HTTP, `POST` |
-| URL | `https://api.github.com/repos/kshu231/nvda-open-interest/actions/workflows/gex.yml/dispatches` |
-| Headers | `Authorization: Bearer TOKEN`, `Accept: application/vnd.github+json`, `Content-Type: application/json` |
-| Body | `{"ref":"main"}` |
+GitHub's own schedule trigger started runs hours late or not at all, so two
+Google Cloud Scheduler jobs (project `nvda-open-interest`, `us-central1`)
+start the workflows through GitHub's API instead. Both use the time zone
+`America/New_York`, an HTTP `POST` target, and the headers
+`Authorization: Bearer TOKEN`, `Accept: application/vnd.github+json` and
+`Content-Type: application/json`.
 
+| Job | Frequency | URL ends in | Body |
+|---|---|---|---|
+| `nvda-open-interest` | `15,45 9-16 * * 1-5` | `gex.yml/dispatches` | `{"ref":"main"}` |
+| `nvda-oi-daily` | `15,45 8,20-23 * * 1-5` | `daily.yml/dispatches` | `{"ref":"main","inputs":{"timer":"true"}}` |
+
+The URLs begin
+`https://api.github.com/repos/kshu231/nvda-open-interest/actions/workflows/`.
 `TOKEN` is a fine-grained GitHub personal access token limited to this
 repository with Actions set to read and write. It lives only in the scheduler
-job. GitHub answers `204` when a run has been started. The 9:15 and 16:45
-firings fall outside market hours and end without publishing.
+jobs. GitHub answers `204` when a run has been started.
+
+- The `timer` input tells the daily workflow not to republish when the OCC
+  has nothing new, which is most firings.
+- The first job's 9:15 and 16:45 firings fall outside market hours and end
+  without publishing.
+- `gcloud scheduler jobs update http --update-headers` replaces every header,
+  so restate all three when changing one.
 
 ## Where the numbers come from
 

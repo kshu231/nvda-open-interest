@@ -1,14 +1,16 @@
 name: Daily open interest
 
 on:
-  schedule:
-    # GitHub starts scheduled runs late at busy times (often 30-60 minutes) and
-    # sometimes skips them, so rather than two exact times this tries every 15
-    # minutes, off the busy :00/:30 marks, from 12:07 to 14:52 UTC: about
-    # 8:07-10:52 Eastern in summer, 7:07-9:52 in winter. Once the day's data is
-    # saved, later runs find nothing new and stop without republishing.
-    - cron: "7,22,37,52 12-14 * * 1-5"
+  # Started by a Google Cloud Scheduler job through the evening, when the OCC
+  # posts the day's numbers, and again before the next open (see the README).
+  # GitHub's own schedule trigger started runs hours late or not at all, so
+  # there is none here.
   workflow_dispatch:
+    inputs:
+      timer:
+        description: "Started by the scheduler: republish only if the OCC has new data"
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths: ["nvda_oi.py", "nvda_gex.py", "dashboard_template.html", "history_template.html", ".github/workflows/daily.yml"]
@@ -48,7 +50,7 @@ jobs:
           fi
           [ "$code" -eq 0 ] || exit "$code"
           git add data/*_oi_*.csv
-          if git diff --cached --quiet && [ "${{ github.event_name }}" = "schedule" ]; then
+          if git diff --cached --quiet && [ "${{ inputs.timer }}" = "true" ]; then
             echo "Nothing new since the last run; the page stays as it is."
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else
