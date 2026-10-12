@@ -529,38 +529,60 @@ def page_path(kind: str, symbol: str) -> Path:
     return HERE / f"{kind}_{symbol}.html"
 
 
+def gex_path_for(symbol: str) -> Path:
+    """The gamma exposure snapshot nvda_gex.py writes, beside the pages."""
+    return HERE / f"gex_{symbol}.json"
+
+
+def embeddable(payload) -> str:
+    """JSON that is safe inside a <script> element."""
+    return json.dumps(payload, separators=(",", ":")).replace("</", "<\\/")
+
+
 def write_page(template: Path, symbol: str, payload: dict, path: Path) -> None:
     """Fill a page template with its data and write it as a self-contained file."""
-    blob = json.dumps(payload, separators=(",", ":")).replace("</", "<\\/")
     content = (template.read_text(encoding="utf-8")
-               .replace("__OI_SYMBOL__", symbol).replace("__OI_DATA__", blob))
+               .replace("__OI_SYMBOL__", symbol).replace("__OI_DATA__", embeddable(payload)))
     # The template is page content only; wrap it in a document.
     path.write_text('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
                     '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
                     f"</head>\n<body>\n{content}</body>\n</html>\n", encoding="utf-8")
 
 
-def save_dashboard(symbol, asof_line, now, all_rows, others, warning, path: Path) -> None:
+def retrieved_text(now: dt.datetime, pulled: bool) -> str:
+    """When the open interest was pulled; blank on a page rebuilt from saved data."""
+    return f"{now:%a %Y-%m-%d %H:%M} ET" if pulled else ""
+
+
+def save_dashboard(symbol, asof_line, now, all_rows, others, warning, path: Path,
+                   pulled: bool = True) -> None:
     """Write the interactive page: the template with the whole chain embedded."""
+    # The gamma exposure snapshot is nvda_gex.py's; the page goes without until one exists.
+    try:
+        gex = json.loads(gex_path_for(symbol).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        gex = None
     write_page(DASHBOARD_TEMPLATE, symbol, {
         "symbol": symbol,
         "asofText": asof_line,
-        "retrieved": f"{now:%a %Y-%m-%d %H:%M} ET",
+        "retrieved": retrieved_text(now, pulled),
         "warning": warning,
         "excluded": (f"{len(others):,} FLEX/adjusted series holding "
                      f"{sum(s.call_oi + s.put_oi for s in others):,} contracts") if others else "",
         "historyPage": page_path("history", symbol).name,
         "rows": all_rows,
+        "gex": gex,
+        "gexFile": gex_path_for(symbol).name,
     }, path)
 
 
-def save_history(symbol, now, asof, all_rows, warning, path: Path) -> int:
+def save_history(symbol, now, asof, all_rows, warning, path: Path, pulled: bool = True) -> int:
     """Write the history page: each option's open interest on every saved day, for the
     expirations that have not passed. Returns the number of days on it."""
     dates, expiries = history_series(load_history(symbol, asof, all_rows), now.date())
     write_page(HISTORY_TEMPLATE, symbol, {
         "symbol": symbol,
-        "retrieved": f"{now:%a %Y-%m-%d %H:%M} ET",
+        "retrieved": retrieved_text(now, pulled),
         "warning": warning,
         "latestPage": page_path("dashboard", symbol).name,
         "dates": dates,
@@ -602,15 +624,38 @@ def parse_args(argv=None):
     p.add_argument("--force", action="store_true",
                    help="overwrite an existing dated CSV whose contents differ")
     p.add_argument("--no-chart", action="store_true", help="skip the chart")
+    p.add_argument("--rebuild", action="store_true",
+                   help="rewrite the web pages from the newest saved day without contacting "
+                        "the OCC (for when only the gamma exposure snapshot is new)")
     args = p.parse_args(argv)
     if args.top < 1:
         p.error("--top must be at least 1")
     return args
 
 
+def rebuild(symbol: str, now: dt.datetime) -> int:
+    """Rewrite the web pages from the newest saved day, without contacting the OCC."""
+    days = saved_days(symbol)
+    if not days:
+        print(f"Nothing to rebuild: no saved {symbol} day in {rel(DATA_DIR)}.", file=sys.stderr)
+        return EXIT_ERROR
+    asof = max(days)
+    rows = read_csv_rows(days[asof])
+    page = page_path("dashboard", symbol)
+    save_dashboard(symbol, f"{asof:%a %Y-%m-%d} close (saved OCC data)", now, rows, [], "", page,
+                   pulled=False)
+    print(f"  Page:  {rel(page)}")
+    page = page_path("history", symbol)
+    count = save_history(symbol, now, asof, rows, "", page, pulled=False)
+    print(f"  Page:  {rel(page)} ({count} trading day{'s' * (count != 1)} of history)")
+    return EXIT_OK
+
+
 def run(args) -> int:
     symbol = args.symbol.strip().upper()
     now = dt.datetime.now(ET)
+    if args.rebuild:
+        return rebuild(symbol, now)
     today = now.date()
     expected = previous_trading_day(today)
     # After the close, today's session is the newest one the OCC could publish.

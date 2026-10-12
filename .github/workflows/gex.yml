@@ -1,0 +1,62 @@
+name: Gamma exposure refresh
+
+# Started every 30 minutes through the market day by a Google Cloud Scheduler
+# job (see the README): GitHub's own schedule trigger starts hours late or not
+# at all, while runs started through its API start within seconds.
+on:
+  workflow_dispatch:
+
+# The daily pull's group, so the two never publish at the same time.
+concurrency:
+  group: daily-open-interest
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      publish: ${{ steps.pull.outputs.publish }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Pull the Cboe chain and rebuild the pages
+        id: pull
+        run: |
+          set +e
+          python3 nvda_gex.py --if-open
+          code=$?
+          set -e
+          if [ "$code" -eq 75 ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          [ "$code" -eq 0 ] || exit "$code"
+          # Open interest changes once a day and the daily pull saves it, so the
+          # pages are rebuilt from the saved data rather than asking the OCC again.
+          python3 nvda_oi.py --rebuild
+          mkdir -p _site
+          cp dashboard_NVDA.html _site/index.html
+          cp dashboard_NVDA.html history_NVDA.html gex_NVDA.json _site/
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-pages-artifact@v5
+        if: steps.pull.outputs.publish == 'true'
+        with:
+          path: _site
+
+  deploy:
+    needs: refresh
+    if: needs.refresh.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@v6
+      - id: deploy
+        uses: actions/deploy-pages@v5

@@ -74,6 +74,7 @@
   }
   .filters { display: flex; flex-wrap: wrap; gap: 16px; margin: 20px 0; align-items: end; }
   .filters label { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); }
+  .filters label[hidden] { display: none; }
   select {
     font: inherit; color: var(--ink); background: var(--surface);
     border: 1px solid var(--border); border-radius: 8px; padding: 7px 10px; min-width: 120px;
@@ -123,10 +124,40 @@
   .axis-title { position: absolute; right: var(--value-w); bottom: 0; font-size: 12px; color: var(--muted); }
   .empty { padding: 24px 0; color: var(--ink-2); }
 
+  /* Gamma exposure: level tiles, then two plots on one strike axis (bars, profile). */
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 12px 16px; margin: 14px 0 4px; }
+  .tile span { display: block; font-size: 12px; color: var(--ink-2); }
+  .tile b { font-size: 20px; font-weight: 650; }
+  #gex-chart svg { display: block; width: 100%; touch-action: pan-y; outline: none; }
+  #gex-chart svg:focus-visible { outline: 2px solid var(--axis); outline-offset: 2px; border-radius: 6px; }
+  .gx-grid { stroke: var(--grid); }
+  .gx-zero { stroke: var(--axis); }
+  .gx-tick, .gx-label { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
+  .gx-label, .gx-title { fill: var(--ink-2); }
+  .gx-label { paint-order: stroke; stroke: var(--surface); stroke-width: 3px; }
+  .gx-title { font-size: 12px; }
+  .gx-pos { fill: var(--call); }
+  .gx-neg { fill: var(--put); }
+  .gx-wash { opacity: 0.1; }
+  .gx-line { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .gx-line.gx-pos { stroke: var(--call); }
+  .gx-line.gx-neg { stroke: var(--put); }
+  .gx-level { stroke: var(--ink-2); stroke-dasharray: 3 3; }
+  .gx-level.spot { stroke: var(--ink); stroke-dasharray: none; }
+  .gx-cross { stroke: var(--muted); }
+  .gx-dot { stroke: var(--surface); stroke-width: 2; }
+  .gx-bar.on { filter: brightness(1.15); }
+  .note { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
+  details.table-view { margin-top: 8px; font-size: 13px; color: var(--ink-2); }
+  details.table-view summary { cursor: pointer; width: fit-content; }
+
   .expiries { margin-top: 12px; font-size: 14px; }
   .expiries th, .expiries td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--grid); }
   .expiries th { font-size: 12px; font-weight: 600; color: var(--ink-2); }
   .expiries th:first-child, .expiries td:first-child { text-align: left; }
+  .expiries.plain { color: var(--ink); }
+  .expiries.plain tbody tr { cursor: default; }
+  .expiries.plain tbody tr:last-child td { border-bottom: 0; }
   .expiries tbody tr { cursor: pointer; }
   .expiries tbody tr:hover { background: var(--wash); }
   .expiries tr.selected { background: var(--wash); font-weight: 650; }
@@ -182,12 +213,50 @@
         <option>10</option><option selected>20</option><option>30</option><option>50</option>
       </select>
     </label>
+    <label id="range-filter" hidden>Strike range
+      <select id="range">
+        <option value="0.1">Spot ±10%</option>
+        <option value="0.2" selected>Spot ±20%</option>
+        <option value="0.3">Spot ±30%</option>
+        <option value="0.5">Spot ±50%</option>
+        <option value="all">All strikes</option>
+      </select>
+    </label>
+    <label id="basis-filter" hidden>Gamma exposure by
+      <select id="basis">
+        <option value="oi">Open interest</option>
+        <option value="volume">Today's volume</option>
+      </select>
+    </label>
   </div>
 
   <section class="card">
     <h2>Open Interest Stats</h2>
     <p class="showing" id="showing-stats"></p>
     <table class="stats"><tbody id="stats"></tbody></table>
+  </section>
+
+  <section class="card" id="gex-card" hidden>
+    <h2>Gamma Exposure</h2>
+    <p class="showing" id="showing-gex"></p>
+    <div class="tiles" id="gex-tiles"></div>
+    <div class="legend">
+      <span><i class="swatch" style="background:var(--call)"></i>Net positive (calls outweigh puts)</span>
+      <span><i class="swatch" style="background:var(--put)"></i>Net negative (puts outweigh calls)</span>
+    </div>
+    <div id="gex-chart"></div>
+    <details class="table-view" id="gex-details">
+      <summary>Table view</summary>
+      <div class="scroll">
+        <table class="expiries plain">
+          <thead id="gex-table-head"></thead>
+          <tbody id="gex-table"></tbody>
+        </table>
+      </div>
+    </details>
+    <p class="note">Calls count as positive and puts as negative, the usual assumption that dealers are
+      long calls and short puts. Gamma is Black-Scholes at each strike's out-of-the-money implied volatility.
+      Source: Cboe delayed quotes, 15 minutes behind; open interest changes once a day.</p>
   </section>
 
   <section class="card">
@@ -271,12 +340,12 @@
 
   // Open on the expiration in the link (#expiry=2026-10-09 or #expiry=all, as the history
   // page links here), else the nearest remaining one.
-  var state = { expiry: expiries[0], side: "both", top: 20 };
+  var state = { expiry: expiries[0], side: "both", top: 20, range: 0.2, basis: "oi" };
   var linked = new URLSearchParams(location.hash.slice(1)).get("expiry");
   if (linked === "all" || byExpiry[linked]) state.expiry = linked;
   var ready = false;
 
-  $("meta").textContent = "Data as of " + D.asofText + " · retrieved " + D.retrieved;
+  $("meta").textContent = "Data as of " + D.asofText + (D.retrieved ? " · retrieved " + D.retrieved : "");
   if (D.warning) { $("warning").hidden = false; $("warning").textContent = D.warning; }
   $("footer").textContent = "Source: OCC series-search. Standard listed options only" +
     (D.excluded ? "; excludes " + D.excluded + "." : ".") +
@@ -342,6 +411,9 @@
     tip.appendChild(name);
     tip.appendChild(el("div", "", "#" + rank + " · " + (100 * r.oi / scopeTotal).toFixed(1) +
       "% of " + (state.expiry === "all" ? "all" : "this expiration's") + " open interest"));
+    placeTip(x, y);
+  }
+  function placeTip(x, y) {
     tip.hidden = false;
     var w = tip.offsetWidth, h = tip.offsetHeight;
     tip.style.left = Math.max(8, Math.min(x + 14, window.innerWidth - w - 8)) + "px";
@@ -424,6 +496,363 @@
     foot.appendChild(total);
   }
 
+  // ---- Gamma exposure ------------------------------------------------------
+  // G is nvda_gex.py's snapshot: the stock price and, per expiration, years to
+  // expiry `t` and rows of [strike, call OI, put OI, call volume, put volume, IV].
+  var G = D.gex;
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  var MINUS = "−";
+
+  function svgEl(tag, attrs, parent) {
+    var node = document.createElementNS(SVG_NS, tag);
+    for (var key in attrs) node.setAttribute(key, attrs[key]);
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+  function compact(size) {
+    if (size >= 1e9) return +(size / 1e9).toFixed(2) + "B";
+    if (size >= 1e6) return +(size / 1e6).toFixed(size >= 1e8 ? 0 : 1) + "M";
+    if (size >= 1e3) return (size / 1e3).toFixed(0) + "K";
+    return size.toFixed(0);
+  }
+  function money(v, signed) {
+    var text = compact(Math.abs(v));
+    return text === "0" ? "$0" : (v < 0 ? MINUS : signed ? "+" : "") + "$" + text;
+  }
+  function price(v) { return String(+v.toFixed(2)); }
+  function roundStep(raw) {
+    var pow = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / pow;
+    return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * pow;
+  }
+  // A value axis on round numbers that always includes zero.
+  function valueAxis(values, count) {
+    var min = Math.min.apply(null, values.concat(0)), max = Math.max.apply(null, values.concat(0));
+    if (min === max) max = 1;
+    var step = roundStep((max - min) / count);
+    var first = Math.floor(min / step), last = Math.ceil(max / step), ticks = [];
+    for (var i = first; i <= last; i++) ticks.push(i * step);
+    return { lo: first * step, hi: last * step, ticks: ticks };
+  }
+
+  // The contracts of the selected expiration(s), with the constants of Black-Scholes gamma.
+  function gexContracts() {
+    var byVolume = state.basis === "volume", rate = G.rate || 0, list = [];
+    G.expiries.forEach(function (e) {
+      if (state.expiry !== "all" && e.date !== state.expiry) return;
+      e.rows.forEach(function (r) {
+        var calls = r[byVolume ? 3 : 1], puts = r[byVolume ? 4 : 2], iv = r[5];
+        if (!(iv > 0) || !(calls || puts)) return;
+        list.push({ k: r[0], calls: calls, puts: puts, vol: iv * Math.sqrt(e.t),
+                    shift: Math.log(r[0]) - (rate + iv * iv / 2) * e.t });
+      });
+    });
+    return list;
+  }
+  // Dollar gamma of one contract per 1% move with the stock at s:
+  // gamma x 100 shares x 1% of s squared. The same for a call and a put.
+  function unitGamma(c, s) {
+    var d1 = (Math.log(s) - c.shift) / c.vol;
+    return Math.exp(-d1 * d1 / 2) * s / (2.5066282746310002 * c.vol);
+  }
+  // Calls count as positive and puts as negative: dealers long calls, short puts.
+  function netAt(list, s) {
+    var total = 0;
+    if (s > 0) for (var i = 0; i < list.length; i++) total += unitGamma(list[i], s) * (list[i].calls - list[i].puts);
+    return total;
+  }
+
+  function gexLevels(list) {
+    var spot = G.spot, strikes = {}, out = { net: 0, callWall: null, putWall: null, flip: null };
+    list.forEach(function (c) {
+      var unit = unitGamma(c, spot);
+      var t = strikes[c.k] || (strikes[c.k] = { k: c.k, call: 0, put: 0, calls: 0, puts: 0 });
+      t.call += unit * c.calls; t.put += unit * c.puts; t.calls += c.calls; t.puts += c.puts;
+    });
+    out.rows = Object.keys(strikes).map(function (k) { return strikes[k]; })
+      .sort(function (a, b) { return a.k - b.k; });
+    var topCall = 0, topPut = 0;
+    out.rows.forEach(function (r) {
+      out.net += r.call - r.put;
+      if (r.call > topCall) { topCall = r.call; out.callWall = r.k; }
+      if (r.put > topPut) { topPut = r.put; out.putWall = r.k; }
+    });
+    // Zero gamma: where the net exposure would change sign, nearest to spot.
+    var before = null;
+    for (var i = 0; i <= 200; i++) {
+      var s = spot * (0.5 + 0.005 * i), net = netAt(list, s);
+      if (before && (before.net < 0) !== (net < 0)) {
+        var cross = before.s + (s - before.s) * -before.net / (net - before.net);
+        if (out.flip === null || Math.abs(cross - spot) < Math.abs(out.flip - spot)) out.flip = cross;
+      }
+      before = { s: s, net: net };
+    }
+    return out;
+  }
+
+  var hideGexReadout = null, drawnWidth = 0;
+
+  // Two plots on one strike axis: net exposure per strike, and under it the
+  // profile, the total net exposure if the stock traded at each price.
+  // Returns the strikes in view, for the table.
+  function drawGex(list, levels) {
+    var box = $("gex-chart");
+    box.textContent = "";
+    hideGexReadout = null;
+    var spot = G.spot, rows = levels.rows, lo, hi, i;
+    if (state.range === "all") {
+      var pad = (rows[rows.length - 1].k - rows[0].k) * 0.02 || 1;
+      lo = Math.max(0, rows[0].k - pad); hi = rows[rows.length - 1].k + pad;
+    } else {
+      lo = spot * (1 - state.range); hi = spot * (1 + state.range);
+    }
+    var inView = rows.filter(function (r) { return r.k >= lo && r.k <= hi; });
+    if (!inView.length) {
+      box.appendChild(el("p", "empty", "No strikes in this range."));
+      return inView;
+    }
+    var W = drawnWidth = box.clientWidth || 640, narrow = W < 520;
+    var left = 44, right = 12, plotW = W - left - right;
+    var X = function (v) { return left + (v - lo) / (hi - lo) * plotW; };
+
+    // A bar needs about 5px: where strikes are denser than that, pool neighbours.
+    var gap = Infinity;
+    for (i = 1; i < inView.length; i++) gap = Math.min(gap, inView[i].k - inView[i - 1].k);
+    if (gap === Infinity) gap = (hi - lo) / 8;
+    var pxPer = plotW / (hi - lo), width = gap, bins = inView;
+    [1, 2.5, 5, 10, 20, 25, 50, 100, 250].forEach(function (w) { if (width * pxPer < 5 && w > width) width = w; });
+    if (width > gap) {
+      var pooled = {};
+      inView.forEach(function (r) {
+        var mid = Math.round(r.k / width) * width;
+        var b = pooled[mid] || (pooled[mid] = { k: mid, from: r.k, call: 0, put: 0, calls: 0, puts: 0 });
+        b.to = r.k; b.call += r.call; b.put += r.put; b.calls += r.calls; b.puts += r.puts;
+      });
+      bins = Object.keys(pooled).map(function (k) { return pooled[k]; })
+        .sort(function (a, b) { return a.k - b.k; });
+    }
+    var barW = Math.max(1.5, Math.min(24, width * pxPer - 2));
+
+    // Level lines. Each label sits beside its line, on the first row where it
+    // does not run into another label.
+    var marks = [{ at: spot, text: "Spot " + price(spot), cls: "gx-level spot" }];
+    if (levels.callWall !== null && levels.callWall === levels.putWall) {
+      marks.push({ at: levels.callWall, text: "Call & put wall " + price(levels.callWall), cls: "gx-level" });
+    } else {
+      if (levels.callWall !== null) marks.push({ at: levels.callWall, text: "Call wall " + price(levels.callWall), cls: "gx-level" });
+      if (levels.putWall !== null) marks.push({ at: levels.putWall, text: "Put wall " + price(levels.putWall), cls: "gx-level" });
+    }
+    if (levels.flip !== null) marks.push({ at: levels.flip, text: "Zero gamma " + levels.flip.toFixed(1), cls: "gx-level" });
+    marks = marks.filter(function (m) { return m.at >= lo && m.at <= hi; })
+      .sort(function (a, b) { return a.at - b.at; });
+    var lanes = [];
+    marks.forEach(function (m) {
+      var w = m.text.length * 6.2 + 4, x = X(m.at);
+      m.flipped = x + 5 + w > W - 2;
+      var a = m.flipped ? x - 5 - w : x + 5, b = a + w;
+      for (m.lane = 0; m.lane < lanes.length; m.lane++) {
+        if (lanes[m.lane].every(function (span) { return b + 6 < span[0] || a - 6 > span[1]; })) break;
+      }
+      (lanes[m.lane] || (lanes[m.lane] = [])).push([a, b]);
+    });
+
+    var laneH = 15, top1 = lanes.length * laneH + 6, h1 = narrow ? 180 : 230;
+    var top2 = top1 + h1 + 54, h2 = narrow ? 120 : 150, H = top2 + h2 + 38;
+    var svg = svgEl("svg", { viewBox: "0 0 " + W + " " + H, height: H, tabindex: 0, role: "img" }, box);
+    svg.setAttribute("aria-label", "Net gamma exposure by strike, and the gamma profile under it. " +
+      "Net " + money(levels.net, true) + " per 1% move. Arrow keys step through the strikes.");
+
+    function text(x, y, anchor, cls, content) {
+      svgEl("text", { x: x, y: y, "text-anchor": anchor, "class": cls }, svg).textContent = content;
+    }
+    function valueLines(axis, Y) {
+      axis.ticks.forEach(function (v) {
+        svgEl("line", { x1: left, x2: left + plotW, y1: Y(v), y2: Y(v), "class": v ? "gx-grid" : "gx-zero" }, svg);
+        text(left - 6, Y(v) + 4, "end", "gx-tick", v ? (v < 0 ? MINUS : "") + compact(Math.abs(v)) : "0");
+      });
+    }
+    var strikeStep = roundStep((hi - lo) / Math.max(3, Math.floor(plotW / 64)));
+    function strikeLabels(y) {
+      for (var v = Math.ceil(lo / strikeStep) * strikeStep; v <= hi; v += strikeStep) text(X(v), y, "middle", "gx-tick", price(v));
+    }
+
+    // Plot 1: net exposure per strike.
+    var net = bins.map(function (b) { return b.call - b.put; });
+    var axis1 = valueAxis(net, 4);
+    var Y1 = function (v) { return top1 + (axis1.hi - v) / (axis1.hi - axis1.lo) * h1; };
+    valueLines(axis1, Y1);
+    strikeLabels(top1 + h1 + 16);
+    var bars = bins.map(function (b, n) {
+      var x = Math.max(left, Math.min(left + plotW - barW, X(b.k) - barW / 2));
+      var h = Math.abs(Y1(net[n]) - Y1(0)), r = Math.min(4, barW / 2, h), up = net[n] >= 0 ? -1 : 1;
+      // Rounded at the data end, square on the baseline.
+      var d = "M" + x + "," + Y1(0) + "v" + up * (h - r) + "q0," + up * r + " " + r + "," + up * r +
+        "h" + (barW - 2 * r) + "q" + r + ",0 " + r + "," + -up * r + "v" + -up * (h - r) + "z";
+      return svgEl("path", { d: d, "class": "gx-bar " + (up < 0 ? "gx-pos" : "gx-neg") }, svg);
+    });
+
+    // Plot 2: the profile, coloured by sign like the bars.
+    text(left, top2 - 12, "start", "gx-title", "Gamma profile: net exposure by stock price");
+    var count = Math.max(40, Math.min(160, Math.round(plotW / 4))), points = [];
+    for (i = 0; i <= count; i++) {
+      var s = lo + (hi - lo) * i / count;
+      points.push([s, netAt(list, s)]);
+    }
+    var axis2 = valueAxis(points.map(function (p) { return p[1]; }), 3);
+    var Y2 = function (v) { return top2 + (axis2.hi - v) / (axis2.hi - axis2.lo) * h2; };
+    valueLines(axis2, Y2);
+    strikeLabels(top2 + h2 + 16);
+    text(left + plotW, top2 + h2 + 33, "end", "gx-tick", "Strike / stock price");
+    var line = points.map(function (p, n) {
+      return (n ? "L" : "M") + X(p[0]).toFixed(1) + "," + Y2(p[1]).toFixed(1);
+    }).join("");
+    var area = line + "L" + X(hi) + "," + Y2(0) + "L" + X(lo) + "," + Y2(0) + "z";
+    var defs = svgEl("defs", {}, svg);
+    [["gx-above", top2 - 2, Y2(0), "gx-pos"], ["gx-below", Y2(0), top2 + h2 + 2, "gx-neg"]].forEach(function (half) {
+      svgEl("rect", { x: left, y: half[1], width: plotW, height: Math.max(0, half[2] - half[1]) },
+        svgEl("clipPath", { id: half[0] }, defs));
+      svgEl("path", { d: area, "class": "gx-wash " + half[3], "clip-path": "url(#" + half[0] + ")" }, svg);
+      svgEl("path", { d: line, "class": "gx-line " + half[3], "clip-path": "url(#" + half[0] + ")" }, svg);
+    });
+
+    marks.forEach(function (m) {
+      var x = X(m.at), y = (m.lane + 1) * laneH - 3;
+      svgEl("line", { x1: x, x2: x, y1: y - 9, y2: top1 + h1, "class": m.cls }, svg);
+      svgEl("line", { x1: x, x2: x, y1: top2, y2: top2 + h2, "class": m.cls }, svg);
+      text(m.flipped ? x - 5 : x + 5, y, m.flipped ? "end" : "start", "gx-label", m.text);
+    });
+
+    // Readout: the nearest bar lifts, a dot marks the profile at that strike.
+    var cross = svgEl("g", { visibility: "hidden" }, svg);
+    var hair = svgEl("line", { y1: top2, y2: top2 + h2, "class": "gx-cross" }, cross);
+    var dot = svgEl("circle", { r: 4 }, cross);
+    var current = -1;
+    function show(n, clientX, clientY) {
+      if (current >= 0) bars[current].classList.remove("on");
+      current = n;
+      var b = bins[n], x = X(b.k), profile = netAt(list, b.k);
+      bars[n].classList.add("on");
+      hair.setAttribute("x1", x); hair.setAttribute("x2", x);
+      dot.setAttribute("cx", x); dot.setAttribute("cy", Y2(profile));
+      dot.setAttribute("class", "gx-dot " + (profile >= 0 ? "gx-pos" : "gx-neg"));
+      cross.setAttribute("visibility", "visible");
+      tip.textContent = "";
+      tip.appendChild(el("b", "", money(net[n], true)));
+      tip.appendChild(el("div", "", (b.to === undefined || b.to === b.from ? "Strike " + price(b.from || b.k)
+        : "Strikes " + price(b.from) + " to " + price(b.to)) + ", net per 1% move"));
+      [["call", "Calls ", b.call, b.calls], ["put", "Puts ", -b.put, b.puts]].forEach(function (side) {
+        var row = el("div"), key = el("i", "key");
+        key.style.background = "var(--" + side[0] + ")";
+        row.appendChild(key);
+        row.appendChild(document.createTextNode(side[1] + money(side[2], true) + " · " + fmt(side[3]) +
+          (state.basis === "volume" ? " traded" : " open")));
+        tip.appendChild(row);
+      });
+      tip.appendChild(el("div", "", "Profile at " + price(b.k) + ": " + money(profile, true)));
+      placeTip(clientX, clientY);
+    }
+    function hide() {
+      if (current >= 0) bars[current].classList.remove("on");
+      current = -1;
+      cross.setAttribute("visibility", "hidden");
+      hideTip();
+    }
+    function nearest(value) {
+      var best = 0;
+      for (var n = 1; n < bins.length; n++) if (Math.abs(bins[n].k - value) < Math.abs(bins[best].k - value)) best = n;
+      return best;
+    }
+    function showFromKeys(n) {
+      var frame = svg.getBoundingClientRect();
+      show(n, frame.left + X(bins[n].k) * frame.width / W, frame.top + top1 + h1 / 2);
+    }
+    function onPointer(ev) {
+      var frame = svg.getBoundingClientRect();
+      show(nearest(lo + ((ev.clientX - frame.left) * W / frame.width - left) / plotW * (hi - lo)), ev.clientX, ev.clientY);
+    }
+    svg.addEventListener("pointermove", onPointer);
+    svg.addEventListener("pointerdown", onPointer);
+    // A finger lifting is not leaving: the readout stays until a tap elsewhere.
+    svg.addEventListener("pointerleave", function (ev) { if (ev.pointerType !== "touch") hide(); });
+    svg.addEventListener("focus", function () { if (svg.matches(":focus-visible")) showFromKeys(nearest(spot)); });
+    svg.addEventListener("blur", hide);
+    svg.addEventListener("keydown", function (ev) {
+      var move = ev.key === "ArrowRight" ? 1 : ev.key === "ArrowLeft" ? -1 : 0;
+      if (!move) return;
+      ev.preventDefault();
+      showFromKeys(Math.max(0, Math.min(bins.length - 1, (current < 0 ? nearest(spot) : current) + move)));
+    });
+    hideGexReadout = hide;
+    return inView;
+  }
+  document.addEventListener("pointerdown", function (ev) {
+    if (hideGexReadout && !ev.target.closest("#gex-chart")) hideGexReadout();
+  });
+
+  function quoteTime() {
+    var at = new Date(G.quoteTime), hours = (Date.now() - at) / 36e5;
+    var when = at.toLocaleString("en-US", { timeZone: "America/New_York", weekday: "short",
+      month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + " ET";
+    if (hours < 1) return when;
+    return when + " (" + (hours < 48 ? Math.round(hours) + " h" : Math.round(hours / 24) + " days") + " old)";
+  }
+
+  function renderGex() {
+    var has = !!(G && G.expiries && G.expiries.length);
+    $("gex-card").hidden = $("range-filter").hidden = $("basis-filter").hidden = !has;
+    if (!has) return;
+    var byVolume = state.basis === "volume";
+    var showingGex = $("showing-gex");
+    showingGex.textContent = "Showing results for ";
+    showingGex.appendChild(el("strong", "", scopeText()[0] + ", by " + (byVolume ? "today's volume" : "open interest")));
+    showingGex.appendChild(document.createTextNode(" · dollars per 1% move · quotes as of " + quoteTime()));
+
+    var list = gexContracts(), tiles = $("gex-tiles"), head = $("gex-table-head"), body = $("gex-table");
+    tiles.textContent = head.textContent = body.textContent = "";
+    $("gex-details").hidden = !list.length;
+    if (!list.length) {
+      $("gex-chart").textContent = "";
+      $("gex-chart").appendChild(el("p", "empty", "No gamma exposure for this selection."));
+      return;
+    }
+    var levels = gexLevels(list);
+    [["Net exposure", money(levels.net, true)],
+     ["Spot", price(G.spot)],
+     ["Call wall", levels.callWall === null ? "n/a" : price(levels.callWall)],
+     ["Put wall", levels.putWall === null ? "n/a" : price(levels.putWall)],
+     ["Zero gamma", levels.flip === null ? "None nearby" : levels.flip.toFixed(1)]].forEach(function (pair) {
+      var tile = el("div", "tile");
+      tile.appendChild(el("span", "", pair[0]));
+      tile.appendChild(el("b", "", pair[1]));
+      tiles.appendChild(tile);
+    });
+
+    var inView = drawGex(list, levels), unit = byVolume ? "volume" : "OI", tr = el("tr");
+    ["Strike", "Call gamma", "Put gamma", "Net", "Call " + unit, "Put " + unit].forEach(function (name) {
+      tr.appendChild(el("th", "", name));
+    });
+    head.appendChild(tr);
+    inView.forEach(function (r) {
+      var row = el("tr");
+      [price(r.k), money(r.call, true), money(-r.put, true), money(r.call - r.put, true), fmt(r.calls), fmt(r.puts)]
+        .forEach(function (cell) { row.appendChild(el("td", "", cell)); });
+      body.appendChild(row);
+    });
+  }
+
+  // A hosted page picks up newer snapshots by itself; a local file keeps the embedded one.
+  function refreshGex() {
+    if (location.protocol === "file:" || document.hidden) return;
+    fetch(D.gexFile + "?t=" + Date.now(), { cache: "no-store" })
+      .then(function (response) { return response.ok ? response.json() : null; })
+      .then(function (snapshot) {
+        if (snapshot && snapshot.expiries && (!G || Date.parse(snapshot.quoteTime) > Date.parse(G.quoteTime))) {
+          G = snapshot;
+          renderGex();
+        }
+      })
+      .catch(function () {});
+  }
+
   function render() {
     expirySelect.value = state.expiry;
     $("history-link").href = historyHref(state.expiry);
@@ -432,6 +861,7 @@
     }
     hideTip();
     renderStats();
+    renderGex();
     renderRanking();
     renderExpiries();
   }
@@ -439,7 +869,22 @@
   expirySelect.addEventListener("change", function () { state.expiry = expirySelect.value; render(); });
   $("side").addEventListener("change", function (ev) { state.side = ev.target.value; render(); });
   $("top").addEventListener("change", function (ev) { state.top = +ev.target.value; render(); });
+  $("range").addEventListener("change", function (ev) {
+    state.range = ev.target.value === "all" ? "all" : +ev.target.value;
+    renderGex();
+  });
+  $("basis").addEventListener("change", function (ev) { state.basis = ev.target.value; renderGex(); });
+  // The chart is drawn to its container's pixel width, so redraw when that changes.
+  function fitGex() {
+    var width = $("gex-chart").clientWidth;
+    if (width && width !== drawnWidth) renderGex();
+  }
+  if (window.ResizeObserver) new ResizeObserver(fitGex).observe($("gex-chart"));
+  else window.addEventListener("resize", fitGex);
   render();
   ready = true;
+  refreshGex();
+  setInterval(refreshGex, 5 * 60 * 1000);
+  document.addEventListener("visibilitychange", refreshGex);
 })();
 </script>

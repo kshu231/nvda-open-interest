@@ -343,7 +343,7 @@
   $("meta").textContent = (n > 1
     ? "Open interest at each close from " + longDay(D.dates[0]) + " to " + longDay(D.dates[n - 1]) + " (" + n + " trading days)"
     : n === 1 ? "Open interest at the " + longDay(D.dates[0]) + " close; each trading day adds a column"
-    : "No days saved yet") + " · retrieved " + D.retrieved;
+    : "No days saved yet") + (D.retrieved ? " · retrieved " + D.retrieved : "");
   if (D.warning) { $("warning").hidden = false; $("warning").textContent = D.warning; }
   $("footer").textContent = "Source: OCC series-search, one snapshot saved per trading day. " +
     "Standard listed options only. Expirations that have passed are not shown.";
