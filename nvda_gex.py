@@ -39,12 +39,19 @@ MIN_IV_COVERAGE = 0.8      # share of near-the-money strikes that must carry an 
 EXIT_OK, EXIT_ERROR, EXIT_CLOSED = 0, 1, 75
 DELAY = dt.timedelta(minutes=15)                     # how far Cboe's quotes run behind
 SESSION = (dt.time(9, 30), dt.time(16, 10))          # regular hours, plus slack for a late final pull
+# Just after the open the feed lists quotes with no implied volatility yet (the 9:45
+# pull, holding 9:30 quotes, found none on Oct 14-16 2026); later pulls have it.
+OPENING = dt.time(10, 0)
 
 PAGE_DATA = re.compile(r'(<script id="data" type="application/json">)(.*?)(</script>)', re.S)
 
 
 class CboeError(Exception):
     """Cboe returned something unusable."""
+
+
+class NoVolatilityYet(CboeError):
+    """The quotes carry too little implied volatility to use."""
 
 
 def quotes_in_session(now: dt.datetime) -> bool:
@@ -155,7 +162,7 @@ def build_snapshot(symbol: str, data: dict, now: dt.datetime) -> dict:
     if not expiries:
         raise CboeError(f"no unexpired standard {symbol} options in the response")
     if covered < MIN_IV_COVERAGE * near:
-        raise CboeError(f"only {covered} of {near} near-the-money strikes carry an implied "
+        raise NoVolatilityYet(f"only {covered} of {near} near-the-money strikes carry an implied "
                         f"volatility (market closed, or the feed is degraded)")
     return {
         "symbol": symbol,
@@ -307,6 +314,12 @@ def main(argv=None) -> int:
         return EXIT_CLOSED
     try:
         snapshot = build_snapshot(symbol, fetch_chain(symbol), now)
+    except NoVolatilityYet as exc:
+        if args.if_open and (now - DELAY).time() < OPENING:
+            print(f"Too soon after the open: {exc}. Keeping the previous snapshot.")
+            return EXIT_CLOSED
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return EXIT_ERROR
     except (OCCError, CboeError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         return EXIT_ERROR
