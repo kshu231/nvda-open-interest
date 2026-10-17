@@ -327,6 +327,21 @@
   function weekday(iso) {
     return new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
   }
+  // Standard monthly options expire on the third Friday of the month, or on the
+  // Thursday before it when that Friday is a market holiday (no Friday listed).
+  function isMonthly(iso, dates) {
+    var p = iso.split("-").map(Number), first = new Date(p[0], p[1] - 1, 1).getDay();
+    var third = 15 + (5 - first + 7) % 7;
+    var friday = iso.slice(0, 8) + (third < 10 ? "0" : "") + third;
+    return p[2] === third || (p[2] === third - 1 && dates.indexOf(friday) < 0);
+  }
+  // "2026-11-20 (Fri, 34d) · Monthly": days counted from today, Eastern.
+  function expiryLabel(iso, dates) {
+    var now = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
+    var days = Math.round((Date.parse(iso + "T00:00:00Z") - Date.parse(now + "T00:00:00Z")) / 864e5);
+    return iso + " (" + weekday(iso) + (days >= 0 ? ", " + (days ? days + "d" : "today") : "") + ")" +
+      (isMonthly(iso, dates) ? " · Monthly" : "");
+  }
   function contractName(r) {
     var p = r.expiry.split("-");
     var strike = r.strike.indexOf(".") < 0 ? r.strike + ".0" : r.strike;
@@ -353,7 +368,7 @@
 
   var expirySelect = $("expiry");
   expiries.forEach(function (e) {
-    var opt = el("option", "", e + " (" + weekday(e) + ")");
+    var opt = el("option", "", expiryLabel(e, expiries));
     opt.value = e;
     expirySelect.appendChild(opt);
   });
@@ -478,7 +493,7 @@
     expiries.forEach(function (e) {
       var t = byExpiry[e], tr = el("tr", e === state.expiry ? "selected" : "");
       var first = el("td");
-      var button = el("button", "", e + " (" + weekday(e) + ")");
+      var button = el("button", "", expiryLabel(e, expiries));
       button.type = "button";
       first.appendChild(button);
       tr.appendChild(first);
