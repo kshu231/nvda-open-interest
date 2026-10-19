@@ -125,7 +125,10 @@
   .empty { padding: 24px 0; color: var(--ink-2); }
 
   /* Gamma exposure: level tiles, then two plots on one strike axis (bars, profile). */
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 12px 16px; margin: 14px 0 4px; }
+  .tiles {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 12px 16px; margin: 14px 0 4px;
+    font-variant-numeric: tabular-nums;
+  }
   .tile span { display: block; font-size: 12px; color: var(--ink-2); }
   .tile b { font-size: 20px; font-weight: 650; }
   #gex-chart svg { display: block; width: 100%; touch-action: pan-y; outline: none; }
@@ -150,6 +153,29 @@
   .note { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
   details.table-view { margin-top: 8px; font-size: 13px; color: var(--ink-2); }
   details.table-view summary { cursor: pointer; width: fit-content; }
+  /* Live price: a status line under the card's "Showing" line, with its controls. */
+  .live {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 10px 0 0;
+    font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums;
+  }
+  .live b { color: var(--ink); font-weight: 650; }
+  .live .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--axis); flex: none; }
+  .live.on .dot { background: var(--ink); animation: beat 2s ease-in-out infinite; }
+  @keyframes beat { 50% { opacity: 0.3; } }
+  @media (prefers-reduced-motion: reduce) { .live.on .dot { animation: none; } }
+  .live button {
+    font: inherit; color: var(--ink-2); background: none; cursor: pointer;
+    padding: 3px 12px; border: 1px solid var(--border); border-radius: 999px;
+  }
+  .live button:hover { background: var(--wash); color: var(--ink); }
+  .live form { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; flex-basis: 100%; margin: 0; }
+  .live form[hidden] { display: none; }
+  .live input {
+    font: inherit; color: var(--ink); background: var(--surface); width: 26ch; min-width: 0;
+    border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px;
+  }
+  .live .hint { flex-basis: 100%; margin: 0; font-size: 12px; color: var(--muted); }
+  .live .hint a { color: inherit; }
 
   .expiries { margin-top: 12px; font-size: 14px; }
   .expiries th, .expiries td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--grid); }
@@ -188,6 +214,7 @@
     .filters label { flex: 1 1 130px; }
     select { width: 100%; }
     .legend .hint { margin-left: 0; flex-basis: 100%; }
+    .live input { flex: 1 1 140px; }
   }
 </style>
 <main>
@@ -239,6 +266,21 @@
   <section class="card" id="gex-card" hidden>
     <h2>Gamma Exposure</h2>
     <p class="showing" id="showing-gex"></p>
+    <div class="live" id="live">
+      <i class="dot" aria-hidden="true"></i>
+      <span id="live-status"></span>
+      <button type="button" id="live-on">Turn on</button>
+      <button type="button" id="live-retry" hidden>Try again</button>
+      <button type="button" id="live-off" hidden>Turn off</button>
+      <form id="live-form" hidden>
+        <input id="live-key" aria-label="Finnhub API key" placeholder="Finnhub API key"
+               autocomplete="off" autocapitalize="off" spellcheck="false" required>
+        <button type="submit">Connect</button>
+        <button type="button" id="live-cancel">Cancel</button>
+        <p class="hint">A free key from <a href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a>.
+          It stays in this browser and goes only to Finnhub.</p>
+      </form>
+    </div>
     <div class="tiles" id="gex-tiles"></div>
     <div class="legend">
       <span><i class="swatch" style="background:var(--call)"></i>Net positive (calls outweigh puts)</span>
@@ -256,7 +298,9 @@
     </details>
     <p class="note">Calls count as positive and puts as negative, the usual assumption that dealers are
       long calls and short puts. Gamma is Black-Scholes at each strike's out-of-the-money implied volatility.
-      Source: Cboe delayed quotes, 15 minutes behind; open interest changes once a day.</p>
+      Source: Cboe delayed quotes, 15 minutes behind; open interest changes once a day. A live price
+      (Finnhub) recomputes everything from the latest trade once a second; implied volatility, volume and
+      open interest stay the snapshot's.</p>
   </section>
 
   <section class="card">
@@ -549,16 +593,35 @@
     return { lo: first * step, hi: last * step, ticks: ticks };
   }
 
+  // Time to expiry: the snapshot's own `t`, or on a live price, counted again from the
+  // trade to the expiration's 16:00 ET close, floored at 30 minutes as in nvda_gex.py.
+  var YEAR_MS = 365 * 864e5, MIN_MS = 30 * 6e4, closes = {};
+  function closeOf(iso) {
+    // 16:00 in New York is 20:00 UTC in daylight time, 21:00 in standard time.
+    if (!(iso in closes)) {
+      var at = Date.parse(iso + "T20:00:00Z");
+      closes[iso] = new Date(at).toLocaleString("en-US", { timeZone: "America/New_York",
+        hour: "numeric", hourCycle: "h23" }) === "16" ? at : at + 36e5;
+    }
+    return closes[iso];
+  }
+  function yearsLeft(e, at) {
+    if (!at) return e.t;
+    var left = closeOf(e.date) - at;
+    return left > 0 ? Math.max(left, MIN_MS) / YEAR_MS : 0;  // 0: expired by then
+  }
+
   // The contracts of the selected expiration(s), with the constants of Black-Scholes gamma.
-  function gexContracts() {
+  function gexContracts(at) {
     var byVolume = state.basis === "volume", rate = G.rate || 0, list = [];
     G.expiries.forEach(function (e) {
-      if (state.expiry !== "all" && e.date !== state.expiry) return;
+      var t = yearsLeft(e, at);
+      if ((state.expiry !== "all" && e.date !== state.expiry) || !t) return;
       e.rows.forEach(function (r) {
         var calls = r[byVolume ? 3 : 1], puts = r[byVolume ? 4 : 2], iv = r[5];
         if (!(iv > 0) || !(calls || puts)) return;
-        list.push({ k: r[0], calls: calls, puts: puts, vol: iv * Math.sqrt(e.t),
-                    shift: Math.log(r[0]) - (rate + iv * iv / 2) * e.t });
+        list.push({ k: r[0], calls: calls, puts: puts, vol: iv * Math.sqrt(t),
+                    shift: Math.log(r[0]) - (rate + iv * iv / 2) * t });
       });
     });
     return list;
@@ -576,9 +639,35 @@
     return total;
   }
 
-  function gexLevels(list) {
-    var spot = G.spot, strikes = {}, out = { net: 0, callWall: null, putWall: null, flip: null };
-    list.forEach(function (c) {
+  // Where the net exposure would change sign, scanning 50% to 150% of `around`.
+  function zeroCrossings(list, around) {
+    var out = [], before = null;
+    for (var i = 0; i <= 200; i++) {
+      var s = around * (0.5 + 0.005 * i), net = netAt(list, s);
+      if (before && (before.net < 0) !== (net < 0)) out.push(before.s + (s - before.s) * -before.net / (net - before.net));
+      before = { s: s, net: net };
+    }
+    return out;
+  }
+
+  // A new price moves the exposure at each strike but not the profile, which depends only on
+  // the snapshot, the selection and time to expiry (in whole minutes on a live price). So the
+  // contracts, the profile's zero crossings and its drawn points are kept until one of those
+  // changes, and a live price costs one pass over the contracts.
+  var model = {};
+  function gexModel(lp) {
+    var at = lp ? Math.floor(lp.time / 6e4) * 6e4 : 0;
+    var key = [state.expiry, state.basis, at].join(" ");
+    if (model.G !== G || model.key !== key) {
+      var list = gexContracts(at);
+      model = { G: G, key: key, list: list, crossings: zeroCrossings(list, G.spot), profile: null };
+    }
+    return model;
+  }
+
+  function gexLevels(m, spot) {
+    var strikes = {}, out = { net: 0, callWall: null, putWall: null, flip: null };
+    m.list.forEach(function (c) {
       var unit = unitGamma(c, spot);
       var t = strikes[c.k] || (strikes[c.k] = { k: c.k, call: 0, put: 0, calls: 0, puts: 0 });
       t.call += unit * c.calls; t.put += unit * c.puts; t.calls += c.calls; t.puts += c.puts;
@@ -591,34 +680,40 @@
       if (r.call > topCall) { topCall = r.call; out.callWall = r.k; }
       if (r.put > topPut) { topPut = r.put; out.putWall = r.k; }
     });
-    // Zero gamma: where the net exposure would change sign, nearest to spot.
-    var before = null;
-    for (var i = 0; i <= 200; i++) {
-      var s = spot * (0.5 + 0.005 * i), net = netAt(list, s);
-      if (before && (before.net < 0) !== (net < 0)) {
-        var cross = before.s + (s - before.s) * -before.net / (net - before.net);
-        if (out.flip === null || Math.abs(cross - spot) < Math.abs(out.flip - spot)) out.flip = cross;
-      }
-      before = { s: s, net: net };
-    }
+    // Zero gamma: the sign change nearest to spot.
+    m.crossings.forEach(function (cross) {
+      if (out.flip === null || Math.abs(cross - spot) < Math.abs(out.flip - spot)) out.flip = cross;
+    });
     return out;
   }
 
-  var hideGexReadout = null, drawnWidth = 0;
+  // The strike window centres on the snapshot's price and stays put while a live price
+  // moves within half the range of it, so the bars don't slide with every trade.
+  var centre = {};
+  function windowCentre(spot) {
+    if (centre.G !== G || Math.abs(spot - centre.at) > centre.at * state.range / 2) centre = { G: G, at: spot };
+    return centre.at;
+  }
+
+  // gexReadout is the open readout ({k, x, y, mode}), which a live redraw carries over.
+  var hideGexReadout = null, gexReadout = null, drawnWidth = 0;
 
   // Two plots on one strike axis: net exposure per strike, and under it the
   // profile, the total net exposure if the stock traded at each price.
-  // Returns the strikes in view, for the table.
-  function drawGex(list, levels) {
+  // Returns the strikes in view, for the table. `keep` (from a live redraw) carries focus
+  // and a mouse readout over to the new chart.
+  function drawGex(m, levels, spot, keep) {
     var box = $("gex-chart");
     box.textContent = "";
-    hideGexReadout = null;
-    var spot = G.spot, rows = levels.rows, lo, hi, i;
+    hideGexReadout = gexReadout = null;
+    live.held = false;
+    var rows = levels.rows, lo, hi, i;
     if (state.range === "all") {
       var pad = (rows[rows.length - 1].k - rows[0].k) * 0.02 || 1;
       lo = Math.max(0, rows[0].k - pad); hi = rows[rows.length - 1].k + pad;
     } else {
-      lo = spot * (1 - state.range); hi = spot * (1 + state.range);
+      var mid = windowCentre(spot);
+      lo = mid * (1 - state.range); hi = mid * (1 + state.range);
     }
     var inView = rows.filter(function (r) { return r.k >= lo && r.k <= hi; });
     if (!inView.length) {
@@ -649,7 +744,7 @@
 
     // Level lines. Each label sits beside its line, on the first row where it
     // does not run into another label.
-    var marks = [{ at: spot, text: "Spot " + price(spot), cls: "gx-level spot" }];
+    var marks = [{ at: spot, text: "Spot " + spot.toFixed(2), cls: "gx-level spot" }];
     if (levels.callWall !== null && levels.callWall === levels.putWall) {
       marks.push({ at: levels.callWall, text: "Call & put wall " + price(levels.callWall), cls: "gx-level" });
     } else {
@@ -707,11 +802,15 @@
 
     // Plot 2: the profile, coloured by sign like the bars.
     text(left, top2 - 12, "start", "gx-title", "Gamma profile: net exposure by stock price");
-    var count = Math.max(40, Math.min(160, Math.round(plotW / 4))), points = [];
-    for (i = 0; i <= count; i++) {
-      var s = lo + (hi - lo) * i / count;
-      points.push([s, netAt(list, s)]);
+    var count = Math.max(40, Math.min(160, Math.round(plotW / 4))), shape = lo + " " + hi + " " + count;
+    if (!m.profile || m.profile.shape !== shape) {
+      m.profile = { shape: shape, points: [] };
+      for (i = 0; i <= count; i++) {
+        var s = lo + (hi - lo) * i / count;
+        m.profile.points.push([s, netAt(m.list, s)]);
+      }
     }
+    var points = m.profile.points;
     var axis2 = valueAxis(points.map(function (p) { return p[1]; }), 3);
     var Y2 = function (v) { return top2 + (axis2.hi - v) / (axis2.hi - axis2.lo) * h2; };
     valueLines(axis2, Y2);
@@ -741,10 +840,12 @@
     var hair = svgEl("line", { y1: top2, y2: top2 + h2, "class": "gx-cross" }, cross);
     var dot = svgEl("circle", { r: 4 }, cross);
     var current = -1;
-    function show(n, clientX, clientY) {
+    // `mode` is how the readout was opened: "mouse", "touch" or "keys".
+    function show(n, clientX, clientY, mode) {
       if (current >= 0) bars[current].classList.remove("on");
       current = n;
-      var b = bins[n], x = X(b.k), profile = netAt(list, b.k);
+      var b = bins[n], x = X(b.k), profile = netAt(m.list, b.k);
+      gexReadout = { k: b.k, x: clientX, y: clientY, mode: mode };
       bars[n].classList.add("on");
       hair.setAttribute("x1", x); hair.setAttribute("x2", x);
       dot.setAttribute("cx", x); dot.setAttribute("cy", Y2(profile));
@@ -766,10 +867,14 @@
       placeTip(clientX, clientY);
     }
     function hide() {
+      if (!svg.isConnected) return;  // replaced by a redraw
       if (current >= 0) bars[current].classList.remove("on");
       current = -1;
       cross.setAttribute("visibility", "hidden");
       hideTip();
+      gexReadout = null;
+      // A live redraw held back while this readout was open happens now.
+      if (live.held) { live.held = false; setTimeout(redrawGex, 0); }
     }
     function nearest(value) {
       var best = 0;
@@ -778,11 +883,12 @@
     }
     function showFromKeys(n) {
       var frame = svg.getBoundingClientRect();
-      show(n, frame.left + X(bins[n].k) * frame.width / W, frame.top + top1 + h1 / 2);
+      show(n, frame.left + X(bins[n].k) * frame.width / W, frame.top + top1 + h1 / 2, "keys");
     }
     function onPointer(ev) {
       var frame = svg.getBoundingClientRect();
-      show(nearest(lo + ((ev.clientX - frame.left) * W / frame.width - left) / plotW * (hi - lo)), ev.clientX, ev.clientY);
+      show(nearest(lo + ((ev.clientX - frame.left) * W / frame.width - left) / plotW * (hi - lo)), ev.clientX, ev.clientY,
+        ev.pointerType === "touch" ? "touch" : "mouse");
     }
     svg.addEventListener("pointermove", onPointer);
     svg.addEventListener("pointerdown", onPointer);
@@ -797,6 +903,9 @@
       showFromKeys(Math.max(0, Math.min(bins.length - 1, (current < 0 ? nearest(spot) : current) + move)));
     });
     hideGexReadout = hide;
+    if (keep && keep.focused) svg.focus({ preventScroll: true });
+    if (keep && keep.readout) show(nearest(keep.readout.k), keep.readout.x, keep.readout.y, "mouse");
+    else if (keep && keep.focused) hide();  // focusing may have opened one the user had closed
     return inView;
   }
   document.addEventListener("pointerdown", function (ev) {
@@ -811,27 +920,34 @@
     return when + " (" + (hours < 48 ? Math.round(hours) + " h" : Math.round(hours / 24) + " days") + " old)";
   }
 
-  function renderGex() {
+  function renderGex(keep) {
     var has = !!(G && G.expiries && G.expiries.length);
     $("gex-card").hidden = $("range-filter").hidden = $("basis-filter").hidden = !has;
     if (!has) return;
-    var byVolume = state.basis === "volume";
+    var lp = livePrice(), spot = lp ? lp.price : G.spot, byVolume = state.basis === "volume";
+    live.drawn = liveMark(lp);
     var showingGex = $("showing-gex");
     showingGex.textContent = "Showing results for ";
     showingGex.appendChild(el("strong", "", scopeText()[0] + ", by " + (byVolume ? "today's volume" : "open interest")));
-    showingGex.appendChild(document.createTextNode(" · dollars per 1% move · quotes as of " + quoteTime()));
+    showingGex.appendChild(document.createTextNode(" · dollars per 1% move · " +
+      (lp ? "live price, option quotes as of " : "quotes as of ") + quoteTime()));
 
-    var list = gexContracts(), tiles = $("gex-tiles"), head = $("gex-table-head"), body = $("gex-table");
+    var m = gexModel(lp), tiles = $("gex-tiles"), head = $("gex-table-head"), body = $("gex-table");
     tiles.textContent = head.textContent = body.textContent = "";
-    $("gex-details").hidden = !list.length;
-    if (!list.length) {
+    $("gex-details").hidden = !m.list.length;
+    if (!m.list.length) {
+      // On a live price the selected expiration can close while the page is open.
+      var closed = lp && state.expiry !== "all" && closeOf(state.expiry) <= lp.time;
+      hideTip();
+      hideGexReadout = gexReadout = null;
       $("gex-chart").textContent = "";
-      $("gex-chart").appendChild(el("p", "empty", "No gamma exposure for this selection."));
+      $("gex-chart").appendChild(el("p", "empty", closed ? "These options expired at the 4:00 PM ET close."
+        : "No gamma exposure for this selection."));
       return;
     }
-    var levels = gexLevels(list);
+    var levels = gexLevels(m, spot);
     [["Net exposure", money(levels.net, true)],
-     ["Spot", price(G.spot)],
+     [lp ? "Spot (live)" : "Spot", spot.toFixed(2)],
      ["Call wall", levels.callWall === null ? "n/a" : price(levels.callWall)],
      ["Put wall", levels.putWall === null ? "n/a" : price(levels.putWall)],
      ["Zero gamma", levels.flip === null ? "None nearby" : levels.flip.toFixed(1)]].forEach(function (pair) {
@@ -841,7 +957,7 @@
       tiles.appendChild(tile);
     });
 
-    var inView = drawGex(list, levels), unit = byVolume ? "volume" : "OI", tr = el("tr");
+    var inView = drawGex(m, levels, spot, keep), unit = byVolume ? "volume" : "OI", tr = el("tr");
     ["Strike", "Call gamma", "Put gamma", "Net", "Call " + unit, "Put " + unit].forEach(function (name) {
       tr.appendChild(el("th", "", name));
     });
@@ -863,10 +979,195 @@
         if (snapshot && snapshot.expiries && (!G || Date.parse(snapshot.quoteTime) > Date.parse(G.quoteTime))) {
           G = snapshot;
           renderGex();
+          connectLive();
         }
       })
       .catch(function () {});
   }
+
+  // ---- Live price ------------------------------------------------------------
+  // With a Finnhub API key (free at finnhub.io) the page follows the stock's trades over
+  // Finnhub's websocket and redraws the gamma exposure at the latest price, at most once a
+  // second. Open interest, implied volatility and volume stay the snapshot's. The key is
+  // kept in this browser's storage and sent only to Finnhub, so it never reaches the repository.
+  var STORE_KEY = "finnhubKey";
+  var live = { key: "", socket: null, state: "off", message: "", dropped: false, prices: [], price: 0, time: 0,
+               failures: 0, timer: null, pending: null, drawnAt: 0, drawn: "", held: false };
+  try { live.key = localStorage.getItem(STORE_KEY) || ""; } catch (e) { /* storage blocked */ }
+
+  // The live price, once a trade newer than the snapshot's quotes has come in. A connection
+  // that has given up falls back to the snapshot's price rather than show a stale one as live.
+  function livePrice() {
+    return live.price && live.state !== "failed" && G && live.time > Date.parse(G.quoteTime) ? live : null;
+  }
+  // A live redraw is due when the price moves a cent or the minute (time to expiry) turns.
+  function liveMark(lp) {
+    return lp ? Math.round(lp.price * 100) + " " + Math.floor(lp.time / 6e4) : "";
+  }
+
+  function connectLive() {
+    clearTimeout(live.timer);
+    if (!live.key || live.socket || document.hidden || !(G && G.expiries)) return;
+    var socket, openedAt = 0;
+    try {
+      socket = new WebSocket("wss://ws.finnhub.io?token=" + encodeURIComponent(live.key));
+    } catch (e) {
+      live.state = "failed";
+      renderLive();
+      return;
+    }
+    live.socket = socket;
+    live.state = "connecting";
+    socket.onopen = function () {
+      openedAt = Date.now();
+      live.state = "open";
+      live.message = "";
+      live.prices = [];
+      socket.send(JSON.stringify({ type: "subscribe", symbol: D.symbol }));
+      renderLive();
+    };
+    socket.onmessage = function (ev) {
+      var msg;
+      try { msg = JSON.parse(ev.data); } catch (e) { return; }
+      if (msg.type === "trade" && Array.isArray(msg.data)) {
+        msg.data.forEach(function (trade) { if (trade.s === D.symbol) addTrade(+trade.p, +trade.t); });
+      } else if (msg.type === "error") {
+        live.message = String(msg.msg || "");
+        renderLive();
+      }
+    };
+    socket.onclose = function () {
+      if (live.socket !== socket) return;  // closed on purpose
+      live.socket = null;
+      // Refused, or dropped within seconds: most often a key Finnhub won't take, or one
+      // already streaming to another page. Three of those in a row and it stops trying.
+      live.failures = openedAt && Date.now() - openedAt > 1e4 ? 0 : live.failures + 1;
+      live.dropped = !!openedAt;
+      if (live.failures >= 3) {
+        live.state = "failed";
+        if (live.drawn) redrawGex();
+      } else {
+        live.state = "retrying";
+        live.timer = setTimeout(connectLive, 2000 * Math.pow(2, live.failures));
+      }
+      renderLive();
+    };
+    renderLive();
+  }
+  function stopLive(state) {
+    clearTimeout(live.timer);
+    clearTimeout(live.pending);
+    live.pending = null;
+    var socket = live.socket;
+    live.socket = null;
+    if (socket) socket.close();
+    live.state = state;
+  }
+
+  // The price is the median of the last five trades, so one stray print (an odd lot, a late
+  // report) doesn't move it; a trade stamped over 10 seconds before the newest is skipped.
+  function addTrade(p, t) {
+    if (!(p > 0) || !(t > 0) || t < live.time - 1e4) return;
+    live.prices.push(p);
+    if (live.prices.length > 5) live.prices.shift();
+    var sorted = live.prices.slice().sort(function (a, b) { return a - b; });
+    live.price = sorted[sorted.length >> 1];
+    live.time = Math.max(live.time, t);
+    if (live.pending) return;
+    live.pending = setTimeout(function () {
+      live.pending = null;
+      live.drawnAt = Date.now();
+      var lp = livePrice();
+      if (lp && liveMark(lp) !== live.drawn) redrawGex();
+      renderLive();
+    }, Math.max(0, live.drawnAt + 1000 - Date.now()));
+  }
+
+  // A live price redraws the card. A readout opened by touch or the keyboard holds the redraw
+  // until it closes (it is being read, and a screen reader would repeat it every second); a
+  // mouse readout, and focus, carry over to the new chart.
+  function redrawGex() {
+    if (gexReadout && gexReadout.mode !== "mouse") { live.held = true; return; }
+    var old = $("gex-chart").querySelector("svg");
+    renderGex({ readout: gexReadout, focused: !!old && document.activeElement === old });
+  }
+
+  function tradeTime(ms) {
+    var at = new Date(ms), zone = { timeZone: "America/New_York" };
+    var day = at.toLocaleDateString("en-CA", zone) === new Date().toLocaleDateString("en-CA", zone) ? ""
+      : at.toLocaleDateString("en-US", { timeZone: "America/New_York", weekday: "short" }) + " ";
+    return day + at.toLocaleTimeString("en-US", { timeZone: "America/New_York", hour: "numeric",
+      minute: "2-digit", second: "2-digit" }) + " ET";
+  }
+
+  function renderLive() {
+    var on = !!live.key, editing = !$("live-form").hidden, lp = livePrice(), status = $("live-status"), text;
+    $("live").classList.toggle("on", !!(lp && live.state === "open"));
+    $("live-on").hidden = on || editing;
+    $("live-off").hidden = !on;
+    $("live-retry").hidden = live.state !== "failed";
+    status.textContent = "Live price: ";
+    if (!on) text = "off";
+    else if (live.state === "failed") text = live.message ? "Finnhub said “" + live.message + "”."
+      : live.dropped ? "Finnhub keeps closing the connection. Is the key in use on another open page?"
+      : "couldn't connect to Finnhub. Check the key and the connection.";
+    else if (live.state === "retrying") text = "connection lost, reconnecting…";
+    else if (live.state === "open" && lp) {
+      status.appendChild(el("b", "", D.symbol + " " + lp.price.toFixed(2)));
+      text = " at " + tradeTime(lp.time);
+    }
+    else if (live.state === "open") text = "connected, waiting for a trade";
+    else if (live.state === "paused" || document.hidden) text = "paused while the page is hidden";
+    else text = "connecting to Finnhub…";
+    status.appendChild(document.createTextNode(text));
+  }
+
+  $("live-on").addEventListener("click", function () {
+    $("live-form").hidden = false;
+    renderLive();
+    $("live-key").focus();
+  });
+  $("live-cancel").addEventListener("click", function () {
+    $("live-form").hidden = true;
+    renderLive();
+    $("live-on").focus();
+  });
+  $("live-form").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var key = $("live-key").value.trim();
+    if (!key) return;
+    $("live-form").hidden = true;
+    $("live-key").value = "";
+    live.key = key;
+    try { localStorage.setItem(STORE_KEY, key); } catch (e) { /* kept for this visit only */ }
+    live.failures = 0;
+    connectLive();
+  });
+  $("live-retry").addEventListener("click", function () {
+    live.failures = 0;
+    connectLive();
+  });
+  $("live-off").addEventListener("click", function () {
+    stopLive("off");
+    live.key = live.message = "";
+    live.prices = [];
+    live.price = live.time = 0;
+    try { localStorage.removeItem(STORE_KEY); } catch (e) { /* nothing stored */ }
+    renderLive();
+    renderGex();
+  });
+  // The connection closes while the page is hidden and opens again when it is shown.
+  document.addEventListener("visibilitychange", function () {
+    if (!live.key) return;
+    if (document.hidden) {
+      stopLive("paused");
+    } else {
+      live.failures = 0;
+      connectLive();
+      if (liveMark(livePrice()) !== live.drawn) redrawGex();  // a redraw dropped on hiding
+    }
+    renderLive();
+  });
 
   function render() {
     expirySelect.value = state.expiry;
@@ -901,5 +1202,7 @@
   refreshGex();
   setInterval(refreshGex, 5 * 60 * 1000);
   document.addEventListener("visibilitychange", refreshGex);
+  renderLive();
+  connectLive();
 })();
 </script>

@@ -119,6 +119,31 @@ A hosted page fetches `gex_NVDA.json` from beside itself every 5 minutes and
 redraws when it is newer; a page opened as a local file keeps the embedded
 copy until the next pull.
 
+#### Live price
+
+The card can follow the stock's trades as they happen. On the "Live price:
+off" line under the card's heading, "Turn on", paste a Finnhub API key (free
+at https://finnhub.io/register) and "Connect". The page then streams NVDA's
+trades from Finnhub's websocket and redraws the card at the latest price, at
+most once a second: the bars, the tiles, the table and the spot line. Time to
+expiry counts down from each trade, so an expiration drops out at its 16:00
+close. Open interest, implied volatility and volume stay the latest
+snapshot's, so the profile, the walls and zero gamma move little during the
+day; what moves is the price against them, and the exposure at it.
+
+- The key is kept in that browser only (localStorage) and sent only to
+  Finnhub, never to the repository or the published page. Each browser (the
+  phone, the Mac) needs it once; "Turn off" forgets it.
+- The price is the median of the last five trades, so one stray print doesn't
+  move it; a trade stamped more than 10 seconds before the newest is skipped.
+- The strike window stays centred on the snapshot's price until the live price
+  moves more than half the strike range away, so the bars don't slide with
+  every trade. A readout opened by touch or the keyboard holds the redraw
+  until it closes; a mouse readout carries over to the redrawn chart.
+- The connection closes while the page is hidden and reopens when it is
+  shown. After three failed tries in a row it stops, says why and goes back
+  to the snapshot's price; "Try again" restarts it.
+
 ### On a phone, or anywhere
 
 https://kshu231.github.io/nvda-open-interest/ is the same dashboard, hosted
