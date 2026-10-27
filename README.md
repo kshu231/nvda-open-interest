@@ -266,11 +266,15 @@ revised it.
 
 ## Schedule (macOS)
 
+Optional, and not what keeps the hosted site current: the Google Cloud
+Scheduler jobs above start the GitHub workflows, which pull every symbol. This
+is for pulling into a Mac's own copy of the repository.
+
 A LaunchAgent (`~/Library/LaunchAgents/com.nvda-oi.daily.plist`) runs
 `run_daily.sh` Monday to Friday at 08:30 and 09:20, before the 09:30 open.
-Each run pulls fresh data for every symbol in `SYMBOLS` (or only the ones
-given, as in `run_daily.sh NVDA`), writes the report to `logs/nvda_oi.log`,
-the chart to `charts/` and the dated CSV to `data/`. The 09:20 run is both a retry (if
+Each run pulls fresh data (NVDA, or the symbol given, as in `run_daily.sh SPY`),
+writes the report to `logs/nvda_oi.log`, the chart to `charts/` and the dated
+CSV to `data/`. The 09:20 run is both a retry (if
 the OCC had not published by 08:30) and a refresh: if the OCC changed the data
 in between, the CSV is replaced and the log carries a WARNING.
 
