@@ -59,7 +59,9 @@
   main { max-width: 1040px; margin: 0 auto; }
   h1 { font-size: 26px; margin: 0 0 4px; }
   h2 { font-size: 20px; margin: 0 0 4px; }
-  .pages { display: flex; gap: 6px; margin: 0 0 14px; }
+  .navs { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 14px; }
+  .pages { display: flex; gap: 6px; }
+  .pages[hidden] { display: none; }
   .pages a {
     padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px;
     font-size: 13px; color: var(--ink-2); text-decoration: none;
@@ -218,10 +220,13 @@
   }
 </style>
 <main>
-  <nav class="pages" aria-label="Pages">
-    <a aria-current="page">Latest</a>
-    <a id="history-link">History</a>
-  </nav>
+  <div class="navs">
+    <nav class="pages" aria-label="Symbols" id="symbols"></nav>
+    <nav class="pages" aria-label="Pages">
+      <a aria-current="page">Latest</a>
+      <a id="history-link">History</a>
+    </nav>
+  </div>
   <h1 id="title">__OI_SYMBOL__ Open Interest</h1>
   <p class="meta" id="meta"></p>
   <p class="warning" id="warning" hidden></p>
@@ -379,12 +384,14 @@
     var friday = iso.slice(0, 8) + (third < 10 ? "0" : "") + third;
     return p[2] === third || (p[2] === third - 1 && dates.indexOf(friday) < 0);
   }
-  // "2026-11-20 (Fri, 34d) · Monthly": days counted from today, Eastern.
+  // "2026-11-20 (Fri, 34d) · Monthly": days counted from today, Eastern. Each is worked out
+  // once: SPY lists dozens of expirations and every render relabels them.
+  var labels = {};
   function expiryLabel(iso, dates) {
-    var now = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-    var days = Math.round((Date.parse(iso + "T00:00:00Z") - Date.parse(now + "T00:00:00Z")) / 864e5);
-    return iso + " (" + weekday(iso) + (days >= 0 ? ", " + (days ? days + "d" : "today") : "") + ")" +
-      (isMonthly(iso, dates) ? " · Monthly" : "");
+    if (labels[iso]) return labels[iso];
+    var days = Math.round((Date.parse(iso + "T00:00:00Z") - Date.parse(today + "T00:00:00Z")) / 864e5);
+    return (labels[iso] = iso + " (" + weekday(iso) + (days >= 0 ? ", " + (days ? days + "d" : "today") : "") + ")" +
+      (isMonthly(iso, dates) ? " · Monthly" : ""));
   }
   function contractName(r) {
     var p = r.expiry.split("-");
@@ -409,6 +416,16 @@
   $("footer").textContent = "Source: OCC series-search. Standard listed options only" +
     (D.excluded ? "; excludes " + D.excluded + "." : ".") +
     (expired.length ? " Not shown, already expired: " + expired.join(", ") + "." : "");
+
+  // The same page for each symbol, opened on the same expiration when that symbol has it.
+  var symbolLinks = (D.symbolPages || []).map(function (pair) {
+    var link = el("a", "", pair[0]);
+    if (pair[0] === D.symbol) link.setAttribute("aria-current", "page");
+    else link.dataset.page = pair[1];
+    $("symbols").appendChild(link);
+    return link;
+  });
+  $("symbols").hidden = symbolLinks.length < 2;
 
   var expirySelect = $("expiry");
   expiries.forEach(function (e) {
@@ -632,18 +649,36 @@
     var d1 = (Math.log(s) - c.shift) / c.vol;
     return Math.exp(-d1 * d1 / 2) * s / (2.5066282746310002 * c.vol);
   }
-  // Calls count as positive and puts as negative: dealers long calls, short puts.
-  function netAt(list, s) {
-    var total = 0;
-    if (s > 0) for (var i = 0; i < list.length; i++) total += unitGamma(list[i], s) * (list[i].calls - list[i].puts);
-    return total;
+  // The profile evaluates every contract at a few hundred prices, which on SPY's chain is
+  // millions of terms, so its loop runs over typed arrays: per contract, the log price its
+  // gamma centres on, 1 / its volatility to expiry, and its net size over sqrt(2 pi) x that
+  // volatility. Calls count as positive and puts as negative: dealers long calls, short puts.
+  function profileTerms(list) {
+    var n = list.length, a = { shift: new Float64Array(n), inv: new Float64Array(n), size: new Float64Array(n) };
+    list.forEach(function (c, i) {
+      a.shift[i] = c.shift;
+      a.inv[i] = 1 / c.vol;
+      a.size[i] = (c.calls - c.puts) / (2.5066282746310002 * c.vol);
+    });
+    return a;
+  }
+  // Net exposure with the stock at s. A contract more than 8 standard deviations away adds
+  // e^-32 of its size, nothing visible, so it is skipped.
+  function netAt(a, s) {
+    if (!(s > 0)) return 0;
+    var ls = Math.log(s), total = 0, shift = a.shift, inv = a.inv, size = a.size;
+    for (var i = 0; i < shift.length; i++) {
+      var d1 = (ls - shift[i]) * inv[i];
+      if (d1 > -8 && d1 < 8) total += Math.exp(-d1 * d1 / 2) * size[i];
+    }
+    return total * s;
   }
 
   // Where the net exposure would change sign, scanning 50% to 150% of `around`.
-  function zeroCrossings(list, around) {
+  function zeroCrossings(terms, around) {
     var out = [], before = null;
     for (var i = 0; i <= 200; i++) {
-      var s = around * (0.5 + 0.005 * i), net = netAt(list, s);
+      var s = around * (0.5 + 0.005 * i), net = netAt(terms, s);
       if (before && (before.net < 0) !== (net < 0)) out.push(before.s + (s - before.s) * -before.net / (net - before.net));
       before = { s: s, net: net };
     }
@@ -659,8 +694,8 @@
     var at = lp ? Math.floor(lp.time / 6e4) * 6e4 : 0;
     var key = [state.expiry, state.basis, at].join(" ");
     if (model.G !== G || model.key !== key) {
-      var list = gexContracts(at);
-      model = { G: G, key: key, list: list, crossings: zeroCrossings(list, G.spot), profile: null };
+      var list = gexContracts(at), terms = profileTerms(list);
+      model = { G: G, key: key, list: list, terms: terms, crossings: zeroCrossings(terms, G.spot), profile: null };
     }
     return model;
   }
@@ -807,7 +842,7 @@
       m.profile = { shape: shape, points: [] };
       for (i = 0; i <= count; i++) {
         var s = lo + (hi - lo) * i / count;
-        m.profile.points.push([s, netAt(m.list, s)]);
+        m.profile.points.push([s, netAt(m.terms, s)]);
       }
     }
     var points = m.profile.points;
@@ -844,7 +879,7 @@
     function show(n, clientX, clientY, mode) {
       if (current >= 0) bars[current].classList.remove("on");
       current = n;
-      var b = bins[n], x = X(b.k), profile = netAt(m.list, b.k);
+      var b = bins[n], x = X(b.k), profile = netAt(m.terms, b.k);
       gexReadout = { k: b.k, x: clientX, y: clientY, mode: mode };
       bars[n].classList.add("on");
       hair.setAttribute("x1", x); hair.setAttribute("x2", x);
@@ -1172,6 +1207,9 @@
   function render() {
     expirySelect.value = state.expiry;
     $("history-link").href = historyHref(state.expiry);
+    symbolLinks.forEach(function (link) {
+      if (link.dataset.page) link.href = link.dataset.page + "#expiry=" + state.expiry;
+    });
     if (ready && location.hash !== "#expiry=" + state.expiry) {
       try { history.replaceState(null, "", "#expiry=" + state.expiry); } catch (e) { /* some browsers refuse on file:// */ }
     }

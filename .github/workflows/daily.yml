@@ -13,7 +13,8 @@ on:
         default: false
   push:
     branches: [main]
-    paths: ["nvda_oi.py", "nvda_gex.py", "dashboard_template.html", "history_template.html", ".github/workflows/daily.yml"]
+    paths: ["nvda_oi.py", "nvda_gex.py", "dashboard_template.html", "history_template.html",
+            "build_site.sh", ".github/workflows/daily.yml"]
 
 concurrency:
   group: daily-open-interest
@@ -26,29 +27,45 @@ jobs:
       contents: write
     outputs:
       publish: ${{ steps.pull.outputs.publish }}
+      failed: ${{ steps.pull.outputs.failed }}
     steps:
       - uses: actions/checkout@v7
 
       - name: Pull open interest from the OCC
         id: pull
         run: |
-          # The gamma exposure snapshot goes first so the page built next embeds
-          # it. With the market closed there is nothing new to pull, so the
-          # snapshot already published is carried over. The page works without one.
           site="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
-          python3 nvda_gex.py --if-open \
-            || { curl -fsS "$site/gex_NVDA.json" -o published.json && mv published.json gex_NVDA.json; } \
-            || echo "No gamma exposure snapshot this run."
-          set +e
-          python3 nvda_oi.py --csv --force --no-chart
-          code=$?
-          set -e
-          if [ "$code" -eq 75 ]; then
-            echo "The OCC has not published yet; a later run will pick it up."
-            echo "publish=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          [ "$code" -eq 0 ] || exit "$code"
+          new=false
+          failed=""
+          for symbol in $(python3 -c 'import nvda_oi; print(*nvda_oi.SYMBOLS)'); do
+            echo "::group::$symbol"
+            # The gamma exposure snapshot goes first so the page built next embeds
+            # it. With the market closed there is nothing new to pull, so the
+            # snapshot already published is carried over. The page works without one.
+            python3 nvda_gex.py --symbol "$symbol" --if-open \
+              || { curl -fsS "$site/gex_$symbol.json" -o published.json && mv published.json "gex_$symbol.json"; } \
+              || echo "No $symbol gamma exposure snapshot this run."
+            set +e
+            python3 nvda_oi.py --symbol "$symbol" --csv --force --no-chart
+            code=$?
+            set -e
+            if [ "$code" -eq 0 ]; then
+              new=true
+            else
+              if [ "$code" -eq 75 ]; then
+                echo "The OCC has not published $symbol yet; a later run will pick it up."
+              else
+                # The other symbols still go up; the report job turns the run red.
+                echo "::error::The $symbol open interest pull failed (exit $code)."
+                failed="$failed $symbol"
+              fi
+              # Its pages go up with the others', rebuilt from the saved data
+              # (75: nothing saved for it yet).
+              python3 nvda_oi.py --symbol "$symbol" --rebuild || [ $? -eq 75 ]
+            fi
+            echo "::endgroup::"
+          done
+          echo "failed=${failed# }" >> "$GITHUB_OUTPUT"
           git add data/*_oi_*.csv
           # Keep a record of which run brought each new day in, to tune the
           # scheduler's hours by. The script notes the first save of a day in
@@ -66,8 +83,10 @@ jobs:
               | sed "s/\$/,$started_by,$GITHUB_RUN_ID/" >> "$log"
             git add "$log"
           fi
-          if git diff --cached --quiet && [ "${{ inputs.timer }}" = "true" ]; then
-            echo "Nothing new since the last run; the page stays as it is."
+          # A timer run republishes only when it saved something new; a push or a
+          # manual run always does, so a change to the pages goes up straight away.
+          if [ "${{ inputs.timer }}" = "true" ] && { [ "$new" = false ] || git diff --cached --quiet; }; then
+            echo "Nothing new since the last run; the pages stay as they are."
             echo "publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"
@@ -83,12 +102,7 @@ jobs:
 
       - name: Build the site
         if: steps.pull.outputs.publish == 'true'
-        # The pages link to each other by file name, so each also goes up under its own.
-        run: |
-          mkdir -p _site
-          cp dashboard_NVDA.html _site/index.html
-          cp dashboard_NVDA.html history_NVDA.html _site/
-          if [ -f gex_NVDA.json ]; then cp gex_NVDA.json _site/; fi
+        run: ./build_site.sh
 
       - uses: actions/upload-pages-artifact@v5
         if: steps.pull.outputs.publish == 'true'
@@ -109,3 +123,14 @@ jobs:
       - uses: actions/configure-pages@v6
       - id: deploy
         uses: actions/deploy-pages@v5
+
+  # A symbol whose pull failed doesn't hold the others back, but the run still
+  # ends red so the failure gets noticed.
+  report:
+    needs: [pull, deploy]
+    if: always() && needs.pull.outputs.failed != ''
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::The open interest pull failed for ${{ needs.pull.outputs.failed }}; the other symbols were not held up."
+          exit 1

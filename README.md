@@ -1,8 +1,10 @@
-# NVDA open interest, straight from the OCC
+# NVDA and SPY open interest, straight from the OCC
 
 Daily report of call/put open interest per strike and expiration, pulled from
 the Options Clearing Corporation instead of an aggregator. No API key, no paid
-service.
+service. The scheduled pulls and the hosted pages cover the symbols in
+`SYMBOLS` at the top of `nvda_oi.py`, NVDA and SPY; the scripts take any
+underlying.
 
 ## Setup
 
@@ -22,7 +24,7 @@ is standard library.
 .venv/bin/python nvda_oi.py --expiry 2026-10-16   # a specific expiration
 .venv/bin/python nvda_oi.py --expiry all          # rank across the whole chain
 .venv/bin/python nvda_oi.py --top 10              # top 10 contracts instead of 20
-.venv/bin/python nvda_oi.py --symbol AAPL         # another underlying
+.venv/bin/python nvda_oi.py --symbol SPY          # another underlying
 ```
 
 | Option | Meaning |
@@ -35,7 +37,7 @@ is standard library.
 | `--allow-stale` | Report what the OCC has even if the previous trading day is not out yet |
 | `--force` | Overwrite a dated CSV whose contents differ |
 | `--no-chart` | Skip the chart |
-| `--rebuild` | Rewrite the web pages from the newest saved day without contacting the OCC |
+| `--rebuild` | Rewrite the web pages from the newest saved day without contacting the OCC (exit `75` if none is saved yet) |
 
 Exit codes: `0` ok, `1` error, `75` the OCC has not published yet (try later).
 
@@ -50,13 +52,16 @@ cannot be fetched later.
 
 ## The web pages
 
-Every run rewrites two pages, each a single self-contained file with its data
-embedded (no server, no network needed to view them). A Latest / History
-switch at the top of each goes to the other.
+Every run rewrites two pages for its symbol, each a single self-contained file
+with its data embedded (no server, no network needed to view them). At the top
+of each, an NVDA / SPY switch goes to the same page for the other symbol (on
+the same expiration, when it has one), and a Latest / History switch goes to
+the other page.
 
 ```bash
 open dashboard_NVDA.html   # the latest day
-open history_NVDA.html     # every saved day
+open history_NVDA.html     # day by day
+open dashboard_SPY.html    # the same for SPY
 ```
 
 `dashboard_NVDA.html` shows the Open Interest Stats table and the Highest Open
@@ -77,9 +82,19 @@ ranked among that expiration's calls (or puts) each day. The address keeps the
 selection, so `history_NVDA.html#expiry=2026-10-09&option=240C` opens on the
 240 call expiring 10/09/26.
 
-The history comes from every CSV in `data/` plus the latest pull, so it starts
-on the first saved day (2026-10-01) and grows by one column each trading day.
-An expiration drops off once it has passed; its CSV rows stay in `data/`.
+The history comes from the CSVs in `data/` plus the latest pull, the last 60
+saved trading days: it starts on the first saved day (2026-10-01 for NVDA) and
+grows by one column each trading day until it covers 60. An expiration drops
+off once it has passed; its CSV rows stay in `data/`, which keeps every day.
+If those days' options would make the page larger than about 2 MB (SPY's chain
+does; NVDA's doesn't), the page keeps only the options that ranked among their
+expiration's 50 largest calls or puts on one of those days. Its rankings stay
+exact, the Option menu lists just those options, and a rank past 50 reads
+"> 50".
+
+To add a symbol, add it to `SYMBOLS` in `nvda_oi.py`: the workflows pull it,
+the site publishes its pages and the switch links them. Its history starts the
+day it is first saved, since the OCC serves no past days.
 
 The layouts live in `dashboard_template.html` and `history_template.html`;
 edit those, not the generated files. Reload a page after a data pull to see
@@ -89,7 +104,7 @@ the new day.
 
 ```bash
 .venv/bin/python nvda_gex.py                      # pull Cboe, write gex_NVDA.json
-.venv/bin/python nvda_gex.py --symbol AAPL        # another underlying
+.venv/bin/python nvda_gex.py --symbol SPY         # another underlying, gex_SPY.json
 .venv/bin/python nvda_gex.py --if-open            # only while the market's quotes are live
 ```
 
@@ -123,8 +138,9 @@ copy until the next pull.
 
 The card can follow the stock's trades as they happen. On the "Live price:
 off" line under the card's heading, "Turn on", paste a Finnhub API key (free
-at https://finnhub.io/register) and "Connect". The page then streams NVDA's
-trades from Finnhub's websocket and redraws the card at the latest price, at
+at https://finnhub.io/register) and "Connect". The page then streams the
+stock's trades (NVDA's or SPY's) from Finnhub's websocket and redraws the card
+at the latest price, at
 most once a second: the bars, the tiles, the table and the spot line. Time to
 expiry counts down from each trade, so an expiration drops out at its 16:00
 close. Open interest, implied volatility and volume stay the latest
@@ -133,7 +149,11 @@ day; what moves is the price against them, and the exposure at it.
 
 - The key is kept in that browser only (localStorage) and sent only to
   Finnhub, never to the repository or the published page. Each browser (the
-  phone, the Mac) needs it once; "Turn off" forgets it.
+  phone, the Mac) needs it once, and the NVDA and SPY pages share it; "Turn
+  off" forgets it.
+- Finnhub allows one connection per key, so two pages on screen at once (NVDA
+  and SPY side by side, or the phone and the Mac) cut each other off. A page in
+  a background tab lets go of its connection.
 - The price is the median of the last five trades, so one stray print doesn't
   move it; a trade stamped more than 10 seconds before the newest is skipped.
 - The strike window stays centred on the snapshot's price until the live price
@@ -146,24 +166,30 @@ day; what moves is the price against them, and the exposure at it.
 
 ### On a phone, or anywhere
 
-https://kshu231.github.io/nvda-open-interest/ is the same dashboard, hosted
-by GitHub Pages, and
-https://kshu231.github.io/nvda-open-interest/history_NVDA.html the history.
-Two GitHub Actions workflows keep them current on GitHub's servers; neither
-depends on this Mac.
+https://kshu231.github.io/nvda-open-interest/ is the same NVDA dashboard,
+hosted by GitHub Pages, and
+https://kshu231.github.io/nvda-open-interest/history_NVDA.html the history;
+`dashboard_SPY.html` and `history_SPY.html` beside them are SPY's. Two GitHub
+Actions workflows keep them current on GitHub's servers; neither depends on
+this Mac. `build_site.sh` gathers every symbol's pages for publishing.
 
-`.github/workflows/daily.yml` ("Daily open interest") pulls the OCC. A run
-that finds a new day commits its CSV to `data/` and republishes both pages; a
-timer-started run that finds nothing new changes nothing. It is started
-through the evening, when the day's numbers usually appear (they were out by
-21:06 Eastern on 2026-10-08), so the page can show a day's close the same
-evening, and again before the next open in case the evening missed it.
+`.github/workflows/daily.yml` ("Daily open interest") pulls the OCC for each
+symbol in turn. A run that finds a new day commits its CSV to `data/` and
+republishes the pages; a timer-started run that finds nothing new changes
+nothing, and a push or "Run workflow" always republishes. A symbol with
+nothing new, or whose pull failed, goes up with its pages rebuilt from its
+saved data, so one symbol never holds the other back; a failure still turns
+the run red. It is started through the evening, when the day's numbers
+usually appear (they were out by 21:06 Eastern on 2026-10-08), so the page can
+show a day's close the same evening, and again before the next open in case
+the evening missed it.
 
 `.github/workflows/gex.yml` ("Gamma exposure refresh") refreshes the gamma
-exposure chart every 30 minutes through the market day. It pulls Cboe,
-rebuilds both pages from the saved open interest (`nvda_oi.py --rebuild`, so
-the OCC is not asked again) and republishes. Outside market hours it does
-nothing, and the daily workflow carries the closing snapshot over when it
+exposure charts every 30 minutes through the market day. It pulls Cboe for
+each symbol, rebuilds the pages from the saved open interest (`nvda_oi.py
+--rebuild`, so the OCC is not asked again) and republishes; a symbol whose
+pull failed keeps the snapshot already published. Outside market hours it does
+nothing, and the daily workflow carries the closing snapshots over when it
 republishes.
 
 To run either on demand: the repository's Actions tab, the workflow's name,
@@ -205,7 +231,8 @@ jobs. GitHub answers `204` when a run has been started.
 
 ## Where the numbers come from
 
-- `https://marketdata.theocc.com/series-search?symbolType=U&symbol=NVDA` is a
+- `https://marketdata.theocc.com/series-search?symbolType=U&symbol=NVDA`
+  (`symbol=SPY` for SPY) is a
   tab-delimited file with one row per expiration and strike: product symbol,
   year, month, day, strike integer, strike decimals (thousandths), a `C P` flag
   for which sides are listed, call OI, put OI, position limit. It has no date.
@@ -239,10 +266,15 @@ revised it.
 
 ## Schedule (macOS)
 
+Optional, and not what keeps the hosted site current: the Google Cloud
+Scheduler jobs above start the GitHub workflows, which pull every symbol. This
+is for pulling into a Mac's own copy of the repository.
+
 A LaunchAgent (`~/Library/LaunchAgents/com.nvda-oi.daily.plist`) runs
 `run_daily.sh` Monday to Friday at 08:30 and 09:20, before the 09:30 open.
-Each run pulls fresh data, writes the report to `logs/nvda_oi.log`, the chart
-to `charts/` and the dated CSV to `data/`. The 09:20 run is both a retry (if
+Each run pulls fresh data (NVDA, or the symbol given, as in `run_daily.sh SPY`),
+writes the report to `logs/nvda_oi.log`, the chart to `charts/` and the dated
+CSV to `data/`. The 09:20 run is both a retry (if
 the OCC had not published by 08:30) and a refresh: if the OCC changed the data
 in between, the CSV is replaced and the log carries a WARNING.
 
