@@ -58,7 +58,9 @@
   main { max-width: 1040px; margin: 0 auto; }
   h1 { font-size: 26px; margin: 0 0 4px; }
   h2 { font-size: 20px; margin: 0 0 4px; }
-  .pages { display: flex; gap: 6px; margin: 0 0 14px; }
+  .navs { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 14px; }
+  .pages { display: flex; gap: 6px; }
+  .pages[hidden] { display: none; }
   .pages a {
     padding: 4px 12px; border: 1px solid var(--border); border-radius: 999px;
     font-size: 13px; color: var(--ink-2); text-decoration: none;
@@ -163,10 +165,13 @@
   }
 </style>
 <main>
-  <nav class="pages" aria-label="Pages">
-    <a id="latest-link">Latest</a>
-    <a aria-current="page">History</a>
-  </nav>
+  <div class="navs">
+    <nav class="pages" aria-label="Symbols" id="symbols"></nav>
+    <nav class="pages" aria-label="Pages">
+      <a id="latest-link">Latest</a>
+      <a aria-current="page">History</a>
+    </nav>
+  </div>
   <h1>__OI_SYMBOL__ Open Interest History</h1>
   <p class="meta" id="meta"></p>
   <p class="warning" id="warning" hidden></p>
@@ -318,6 +323,17 @@
     byExpiry[o.expiry].options.forEach(function (p) { if (p.side === o.side && oiAt(p, i) > v) rank++; });
     return rank;
   }
+  // The page holds the options that ranked in their expiration's top D.rankLimit calls or
+  // puts on some day, so a rank past that is only known to be past it.
+  function beyond(rank) { return D.rankLimit && rank > D.rankLimit; }
+  function rankText(o, i) {
+    var rank = rankOn(o, i);
+    return beyond(rank) ? "> " + D.rankLimit : String(rank);
+  }
+  function rankLine(o, i) {
+    var rank = rankOn(o, i), among = " among " + expiryShort(o.expiry) + " " + o.side + "s";
+    return beyond(rank) ? "Outside the top " + D.rankLimit + among : "#" + rank + among;
+  }
 
   var state = { expiry: expiries.length ? expiries[0].expiry : "all", side: "both", top: 20, focus: null };
   function scope() { return state.expiry === "all" ? everything : byExpiry[state.expiry]; }
@@ -345,8 +361,21 @@
   }
   // After the first render, the address keeps the selection so a reload or bookmark returns to it.
   var ready = false;
+  // The same page for each symbol, opened on the same expiration when that symbol has it.
+  var symbolLinks = (D.symbolPages || []).map(function (pair) {
+    var link = el("a", "", pair[0]);
+    if (pair[0] === D.symbol) link.setAttribute("aria-current", "page");
+    else link.dataset.page = pair[1];
+    $("symbols").appendChild(link);
+    return link;
+  });
+  $("symbols").hidden = symbolLinks.length < 2;
+
   function syncLinks() {
     $("latest-link").href = D.latestPage + "#expiry=" + state.expiry;
+    symbolLinks.forEach(function (link) {
+      if (link.dataset.page) link.href = link.dataset.page + "#expiry=" + state.expiry;
+    });
     var hash = "#expiry=" + state.expiry +
       (state.focus && state.expiry !== "all" ? "&option=" + state.focus.strike + sideLetter(state.focus) : "");
     if (ready && location.hash !== hash) {
@@ -361,7 +390,10 @@
     : "No days saved yet") + (D.retrieved ? " · retrieved " + D.retrieved : "");
   if (D.warning) { $("warning").hidden = false; $("warning").textContent = D.warning; }
   $("footer").textContent = "Source: OCC series-search, one snapshot saved per trading day. " +
-    "Standard listed options only. Expirations that have passed are not shown.";
+    "Standard listed options only. Expirations that have passed are not shown." +
+    (D.dayLimit ? " The page covers up to the last " + D.dayLimit + " saved trading days." : "") +
+    (D.rankLimit ? " An option is on it once it ranks among its expiration's " + D.rankLimit +
+      " largest calls or puts on one of those days." : "");
 
   var expirySelect = $("expiry");
   expiries.forEach(function (x) {
@@ -485,7 +517,7 @@
       [shortDay(D.dates[p.i]), fmt(p.v),
        before ? signed(p.v - before.v) : "—",
        before ? percent(p.v, before.v) : "—"].forEach(function (text) { tr.appendChild(el("td", "", text)); });
-      tr.appendChild(el("td", "rank-col", p.v > 0 ? String(rankOn(o, p.i)) : "—"));
+      tr.appendChild(el("td", "rank-col", p.v > 0 ? rankText(o, p.i) : "—"));
       body.appendChild(tr);
     }
   }
@@ -578,7 +610,7 @@
         }
         var lines = [longDay(D.dates[p.i])];
         if (before) lines.push(signed(p.v - before.v) + " (" + percent(p.v, before.v) + ") from " + shortDay(D.dates[before.i]));
-        if (p.v > 0) lines.push("#" + rankOn(o, p.i) + " among " + expiryShort(o.expiry) + " " + o.side + "s");
+        if (p.v > 0) lines.push(rankLine(o, p.i));
         showTip(fmt(p.v), o.side, lines, clientX, clientY);
       },
       hide: function () {

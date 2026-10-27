@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import heapq
 import json
 import sys
 import time
@@ -33,6 +34,17 @@ DATA_DIR = HERE / "data"
 CHART_DIR = HERE / "charts"
 DASHBOARD_TEMPLATE = HERE / "dashboard_template.html"
 HISTORY_TEMPLATE = HERE / "history_template.html"
+
+# The underlyings the scheduled runs pull and the pages switch between. The first one's
+# dashboard is the site's home page.
+SYMBOLS = ("NVDA", "SPY")
+# The history page covers the last HISTORY_DAYS saved trading days. If their options would
+# take more than HISTORY_BUDGET bytes (SPY's chain does; NVDA's doesn't), it keeps only the
+# ones that ranked among the largest HISTORY_TOP calls (or puts) of their expiration on one
+# of those days: enough for its longest ranking. The CSVs keep everything.
+HISTORY_DAYS = 60
+HISTORY_BUDGET = 2_000_000
+HISTORY_TOP = 50
 
 SERIES_URL = "https://marketdata.theocc.com/series-search?symbolType=U&symbol={symbol}"
 OI_DATE_URL = "https://marketdata.theocc.com/mdapi/open-interest?report_date={date:%m/%d/%Y}"
@@ -313,17 +325,20 @@ def latest_saved_before(symbol: str, asof: dt.date):
     return day, earlier[day]
 
 
-def load_history(symbol: str, asof: dt.date, rows):
-    """(day, rows) for every saved day in date order; this pull's rows stand in for `asof`,
-    whether or not they get saved."""
+def load_history(symbol: str, asof: dt.date, rows, limit: int = HISTORY_DAYS):
+    """(day, rows) for the last `limit` saved days in date order; this pull's rows stand in
+    for `asof`, whether or not they get saved."""
     days = saved_days(symbol)
     days[asof] = None
-    for day in sorted(days):
+    for day in sorted(days)[-limit:]:
         yield day, rows if day == asof else read_csv_rows(days[day])
 
 
-def history_series(days, cutoff: dt.date):
+def history_series(days, cutoff: dt.date, top: int | None = None):
     """Open interest per option per day, for the expirations on or after `cutoff`.
+
+    With `top`, only options that ranked among the `top` largest calls (or puts) of their
+    expiration on some day are kept; rankings of up to `top` options stay exact.
 
     Returns (dates, expiries). `dates` are the ISO days that hold any of those options.
     Each expiry is [expiry, first, options]: `first` indexes `dates`, and each option is
@@ -332,20 +347,27 @@ def history_series(days, cutoff: dt.date):
     """
     cutoff = cutoff.isoformat()
     dates, seen = [], {}  # (expiry, strike, side) -> [first date index, values from there]
+    kept = set()
     for day, rows in days:
         live = [row for row in rows if row[0] >= cutoff]
         if not live:
             continue
         i = len(dates)
         dates.append(day.isoformat())
+        ranking = defaultdict(list)  # (expiry, side) -> [(oi, strike)] with open interest
         for expiry, strike, side, oi in live:
             first, values = seen.setdefault((expiry, strike, side), [i, []])
             values.extend([None] * (i - first - len(values)))
             values.append(oi)
+            if top and oi > 0:
+                ranking[expiry, side].append((oi, strike))
+        for (expiry, side), options in ranking.items():
+            kept.update((expiry, strike, side) for _, strike in heapq.nlargest(top, options))
 
     by_expiry = defaultdict(list)
     for (expiry, strike, side), (first, values) in seen.items():
-        by_expiry[expiry].append((strike, side, first, values))
+        if not top or (expiry, strike, side) in kept:
+            by_expiry[expiry].append((strike, side, first, values))
     expiries = []
     for expiry in sorted(by_expiry):
         options = sorted(by_expiry[expiry], key=lambda o: (float(o[0]), o[1]))
@@ -534,6 +556,12 @@ def gex_path_for(symbol: str) -> Path:
     return HERE / f"gex_{symbol}.json"
 
 
+def symbol_pages(kind: str, symbol: str) -> list[list[str]]:
+    """[symbol, page] for each symbol the page links to: the scheduled ones, and this one."""
+    symbols = list(SYMBOLS) + ([symbol] if symbol not in SYMBOLS else [])
+    return [[s, page_path(kind, s).name] for s in symbols]
+
+
 def embeddable(payload) -> str:
     """JSON that is safe inside a <script> element."""
     return json.dumps(payload, separators=(",", ":")).replace("</", "<\\/")
@@ -570,6 +598,7 @@ def save_dashboard(symbol, asof_line, now, all_rows, others, warning, path: Path
         "excluded": (f"{len(others):,} FLEX/adjusted series holding "
                      f"{sum(s.call_oi + s.put_oi for s in others):,} contracts") if others else "",
         "historyPage": page_path("history", symbol).name,
+        "symbolPages": symbol_pages("dashboard", symbol),
         "rows": all_rows,
         "gex": gex,
         "gexFile": gex_path_for(symbol).name,
@@ -577,14 +606,22 @@ def save_dashboard(symbol, asof_line, now, all_rows, others, warning, path: Path
 
 
 def save_history(symbol, now, asof, all_rows, warning, path: Path, pulled: bool = True) -> int:
-    """Write the history page: each option's open interest on every saved day, for the
-    expirations that have not passed. Returns the number of days on it."""
-    dates, expiries = history_series(load_history(symbol, asof, all_rows), now.date())
+    """Write the history page: each option's open interest on each of the last HISTORY_DAYS
+    saved days, for the expirations that have not passed. Returns the number of days on it."""
+    days = list(load_history(symbol, asof, all_rows))
+    dates, expiries = history_series(days, now.date())
+    top = None
+    if len(embeddable(expiries)) > HISTORY_BUDGET:
+        top = HISTORY_TOP
+        dates, expiries = history_series(days, now.date(), top)
     write_page(HISTORY_TEMPLATE, symbol, {
         "symbol": symbol,
         "retrieved": retrieved_text(now, pulled),
         "warning": warning,
         "latestPage": page_path("dashboard", symbol).name,
+        "symbolPages": symbol_pages("history", symbol),
+        "rankLimit": top,
+        "dayLimit": HISTORY_DAYS,
         "dates": dates,
         "expiries": expiries,
     }, path)
@@ -626,7 +663,8 @@ def parse_args(argv=None):
     p.add_argument("--no-chart", action="store_true", help="skip the chart")
     p.add_argument("--rebuild", action="store_true",
                    help="rewrite the web pages from the newest saved day without contacting "
-                        "the OCC (for when only the gamma exposure snapshot is new)")
+                        "the OCC (for when only the gamma exposure snapshot is new); exits 75 "
+                        "if no day is saved yet")
     args = p.parse_args(argv)
     if args.top < 1:
         p.error("--top must be at least 1")
@@ -637,8 +675,8 @@ def rebuild(symbol: str, now: dt.datetime) -> int:
     """Rewrite the web pages from the newest saved day, without contacting the OCC."""
     days = saved_days(symbol)
     if not days:
-        print(f"Nothing to rebuild: no saved {symbol} day in {rel(DATA_DIR)}.", file=sys.stderr)
-        return EXIT_ERROR
+        print(f"Nothing to rebuild: no saved {symbol} day in {rel(DATA_DIR)} yet.")
+        return EXIT_NOT_PUBLISHED
     asof = max(days)
     rows = read_csv_rows(days[asof])
     page = page_path("dashboard", symbol)

@@ -18,27 +18,47 @@ jobs:
       contents: read
     outputs:
       publish: ${{ steps.pull.outputs.publish }}
+      failed: ${{ steps.pull.outputs.failed }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Pull the Cboe chain and rebuild the pages
+      - name: Pull the Cboe chains and rebuild the pages
         id: pull
         run: |
-          set +e
-          python3 nvda_gex.py --if-open
-          code=$?
-          set -e
-          if [ "$code" -eq 75 ]; then
+          site="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
+          symbols=$(python3 -c 'import nvda_oi; print(*nvda_oi.SYMBOLS)')
+          pulled=false
+          failed=""
+          for symbol in $symbols; do
+            set +e
+            python3 nvda_gex.py --symbol "$symbol" --if-open
+            code=$?
+            set -e
+            case "$code" in
+              0) pulled=true ;;
+              75) ;;
+              # The other symbols still go up; the report job turns the run red.
+              *) echo "::error::The $symbol gamma exposure pull failed (exit $code)."
+                 failed="$failed $symbol" ;;
+            esac
+          done
+          echo "failed=${failed# }" >> "$GITHUB_OUTPUT"
+          if [ "$pulled" = false ]; then
             echo "publish=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          [ "$code" -eq 0 ] || exit "$code"
-          # Open interest changes once a day and the daily pull saves it, so the
-          # pages are rebuilt from the saved data rather than asking the OCC again.
-          python3 nvda_oi.py --rebuild
-          mkdir -p _site
-          cp dashboard_NVDA.html _site/index.html
-          cp dashboard_NVDA.html history_NVDA.html gex_NVDA.json _site/
+          for symbol in $symbols; do
+            # A symbol with nothing new this run keeps the snapshot already published.
+            if [ ! -f "gex_$symbol.json" ]; then
+              { curl -fsS "$site/gex_$symbol.json" -o published.json && mv published.json "gex_$symbol.json"; } \
+                || echo "No $symbol gamma exposure snapshot to carry over."
+            fi
+            # Open interest changes once a day and the daily pull saves it, so the
+            # pages are rebuilt from the saved data rather than asking the OCC again
+            # (75: nothing saved for the symbol yet).
+            python3 nvda_oi.py --symbol "$symbol" --rebuild || [ $? -eq 75 ]
+          done
+          ./build_site.sh
           echo "publish=true" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-pages-artifact@v5
@@ -60,3 +80,14 @@ jobs:
       - uses: actions/configure-pages@v6
       - id: deploy
         uses: actions/deploy-pages@v5
+
+  # A symbol whose pull failed doesn't hold the others back, but the run still
+  # ends red so the failure gets noticed.
+  report:
+    needs: [refresh, deploy]
+    if: always() && needs.refresh.outputs.failed != ''
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::The gamma exposure pull failed for ${{ needs.refresh.outputs.failed }}; the other symbols were not held up."
+          exit 1
