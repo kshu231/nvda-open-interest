@@ -577,14 +577,9 @@ def write_page(template: Path, symbol: str, payload: dict, path: Path) -> None:
                     f"</head>\n<body>\n{content}</body>\n</html>\n", encoding="utf-8")
 
 
-def retrieved_text(now: dt.datetime, pulled: bool) -> str:
-    """When the open interest was pulled; blank on a page rebuilt from saved data."""
-    return f"{now:%a %Y-%m-%d %H:%M} ET" if pulled else ""
-
-
-def save_dashboard(symbol, asof_line, now, all_rows, others, warning, path: Path,
-                   pulled: bool = True) -> None:
-    """Write the interactive page: the template with the whole chain embedded."""
+def save_dashboard(symbol, asof_label, all_rows, warning, path: Path) -> None:
+    """Write the interactive page: the template with the whole chain embedded.
+    `asof_label` is the page's date line, "Tue 2026-10-27 close"."""
     # The gamma exposure snapshot is nvda_gex.py's; the page goes without until one exists.
     try:
         gex = json.loads(gex_path_for(symbol).read_text(encoding="utf-8"))
@@ -592,11 +587,8 @@ def save_dashboard(symbol, asof_line, now, all_rows, others, warning, path: Path
         gex = None
     write_page(DASHBOARD_TEMPLATE, symbol, {
         "symbol": symbol,
-        "asofText": asof_line,
-        "retrieved": retrieved_text(now, pulled),
+        "asof": asof_label,
         "warning": warning,
-        "excluded": (f"{len(others):,} FLEX/adjusted series holding "
-                     f"{sum(s.call_oi + s.put_oi for s in others):,} contracts") if others else "",
         "historyPage": page_path("history", symbol).name,
         "symbolPages": symbol_pages("dashboard", symbol),
         "rows": all_rows,
@@ -605,7 +597,7 @@ def save_dashboard(symbol, asof_line, now, all_rows, others, warning, path: Path
     }, path)
 
 
-def save_history(symbol, now, asof, all_rows, warning, path: Path, pulled: bool = True) -> int:
+def save_history(symbol, now, asof, all_rows, warning, path: Path) -> int:
     """Write the history page: each option's open interest on each of the last HISTORY_DAYS
     saved days, for the expirations that have not passed. Returns the number of days on it."""
     days = list(load_history(symbol, asof, all_rows))
@@ -616,12 +608,10 @@ def save_history(symbol, now, asof, all_rows, warning, path: Path, pulled: bool 
         dates, expiries = history_series(days, now.date(), top)
     write_page(HISTORY_TEMPLATE, symbol, {
         "symbol": symbol,
-        "retrieved": retrieved_text(now, pulled),
         "warning": warning,
         "latestPage": page_path("dashboard", symbol).name,
         "symbolPages": symbol_pages("history", symbol),
         "rankLimit": top,
-        "dayLimit": HISTORY_DAYS,
         "dates": dates,
         "expiries": expiries,
     }, path)
@@ -680,11 +670,10 @@ def rebuild(symbol: str, now: dt.datetime) -> int:
     asof = max(days)
     rows = read_csv_rows(days[asof])
     page = page_path("dashboard", symbol)
-    save_dashboard(symbol, f"{asof:%a %Y-%m-%d} close (saved OCC data)", now, rows, [], "", page,
-                   pulled=False)
+    save_dashboard(symbol, f"{asof:%a %Y-%m-%d} close", rows, "", page)
     print(f"  Page:  {rel(page)}")
     page = page_path("history", symbol)
-    count = save_history(symbol, now, asof, rows, "", page, pulled=False)
+    count = save_history(symbol, now, asof, rows, "", page)
     print(f"  Page:  {rel(page)} ({count} trading day{'s' * (count != 1)} of history)")
     return EXIT_OK
 
@@ -813,7 +802,8 @@ def run(args) -> int:
         warning = f"Stale: the OCC has not published {expected:%a %Y-%m-%d} yet."
     page = page_path("dashboard", symbol)
     try:
-        save_dashboard(symbol, asof_line.split("  **")[0], now, all_rows, others, warning, page)
+        save_dashboard(symbol, f"{asof:%a %Y-%m-%d} close" + ("" if verified else " (unverified)"),
+                       all_rows, warning, page)
         print(f"  Page:  {rel(page)}")
     except FileNotFoundError:
         print(f"  Page skipped: {DASHBOARD_TEMPLATE.name} is missing.", file=sys.stderr)
