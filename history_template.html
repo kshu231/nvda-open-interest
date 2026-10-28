@@ -67,8 +67,7 @@
   }
   .pages a[href]:hover { background: var(--wash); color: var(--ink); }
   .pages a[aria-current] { background: var(--wash); color: var(--ink); font-weight: 650; }
-  .meta, .showing { color: var(--ink-2); margin: 0; }
-  .showing strong { color: var(--ink-2); font-weight: 650; }
+  .meta { color: var(--ink-2); margin: 0; }
   .warning {
     margin: 12px 0 0; padding: 8px 12px; border: 1px solid var(--border);
     border-radius: 8px; background: var(--wash); font-weight: 600;
@@ -89,7 +88,6 @@
   .nil { color: var(--muted); }
 
   .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0 2px; font-size: 13px; color: var(--ink-2); }
-  .legend .hint { margin-left: auto; color: var(--muted); }
   .key { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; }
   .key.call { background: var(--call); }
   .key.put { background: var(--put); }
@@ -161,7 +159,6 @@
     .tile .value { font-size: 24px; }
     .daily th, .daily td { padding-inline: 5px; }
     .daily .rank-col { display: none; }  /* the chart's tooltip still gives it */
-    .legend .hint { margin-left: 0; flex-basis: 100%; }
   }
 </style>
 <main>
@@ -194,11 +191,9 @@
 
   <section class="card">
     <h2>Highest Open Interest Options</h2>
-    <p class="showing" id="showing-rank"></p>
     <div class="legend">
       <span><i class="key call"></i>Calls</span>
       <span><i class="key put"></i>Puts</span>
-      <span class="hint">Open interest at each close. Select an option to chart it.</span>
     </div>
     <div class="scroll" id="rank-scroll">
       <table class="days-table">
@@ -212,7 +207,6 @@
     <div class="option-head">
       <div>
         <h2 id="option-title"></h2>
-        <p class="showing" id="option-sub"></p>
       </div>
       <label class="pick">Option <select id="option"></select></label>
     </div>
@@ -283,10 +277,6 @@
     return (text === "0.0" ? "" : p > 0 ? "+" : "−") + text + "%";
   }
   var today = new Date().toLocaleDateString("en-CA", { timeZone: "America/New_York" });
-  function untilText(iso) {
-    var days = Math.round((Date.parse(iso) - Date.parse(today)) / 864e5);
-    return days === 0 ? "today" : days === 1 ? "tomorrow" : "in " + days + " days";
-  }
 
   // Each option's values line up with D.dates from its expiration's first day; a missing or
   // null value means the option was not listed that day.
@@ -384,16 +374,10 @@
   }
 
   var n = D.dates.length;
-  $("meta").textContent = (n > 1
-    ? "Open interest at each close from " + longDay(D.dates[0]) + " to " + longDay(D.dates[n - 1]) + " (" + n + " trading days)"
-    : n === 1 ? "Open interest at the " + longDay(D.dates[0]) + " close; each trading day adds a column"
-    : "No days saved yet") + (D.retrieved ? " · retrieved " + D.retrieved : "");
+  $("meta").textContent = n > 1 ? longDay(D.dates[0]) + " – " + longDay(D.dates[n - 1])
+    : n === 1 ? longDay(D.dates[0]) : "No days saved yet";
   if (D.warning) { $("warning").hidden = false; $("warning").textContent = D.warning; }
-  $("footer").textContent = "Source: OCC series-search, one snapshot saved per trading day. " +
-    "Standard listed options only. Expirations that have passed are not shown." +
-    (D.dayLimit ? " The page covers up to the last " + D.dayLimit + " saved trading days." : "") +
-    (D.rankLimit ? " An option is on it once it ranks among its expiration's " + D.rankLimit +
-      " largest calls or puts on one of those days." : "");
+  $("footer").textContent = "Source: OCC";
 
   var expirySelect = $("expiry");
   expiries.forEach(function (x) {
@@ -409,20 +393,14 @@
   var rankRows = [];
   function renderRanking() {
     var sc = scope(), list = ranked(sc).slice(0, state.top);
-    var head = $("rank-head"), body = $("rank-body"), showing = $("showing-rank");
+    var head = $("rank-head"), body = $("rank-body");
     head.textContent = "";
     body.textContent = "";
     rankRows = [];
-    showing.textContent = "Showing results for ";
-    showing.appendChild(el("strong", "", D.symbol + ", " +
-      (state.expiry === "all" ? "all expirations" : state.expiry + " expiration") + ", " +
-      (state.side === "both" ? "calls & puts" : state.side + "s")));
     if (!list.length) {
-      showing.appendChild(document.createTextNode("."));
       body.appendChild(el("tr")).appendChild(el("td", "empty", n ? "No open interest for this selection." : "No history saved yet."));
       return;
     }
-    showing.appendChild(document.createTextNode(", ranked by open interest on " + longDay(D.dates[sc.last])));
 
     var tr = el("tr"), i;
     tr.appendChild(el("th", "opt", "Option"));
@@ -495,17 +473,14 @@
     $("option-card").hidden = !o;
     if (!o) return;
     var pts = points(o), last = pts[pts.length - 1], prev = pts[pts.length - 2], first = pts[0];
-    var sideName = o.side === "call" ? "Call" : "Put";
     $("option-title").textContent = contractName(o);
-    $("option-sub").textContent = sideName + " expiring " + longDay(o.expiry) + " (" + untilText(o.expiry) + ")";
     fillPicker(o.expiry);
     optionSelect.value = byExpiry[o.expiry].options.indexOf(o);
 
     $("tiles").textContent = "";
-    tile("Open interest", fmt(last.v), "at the " + shortDay(D.dates[last.i]) + " close");
+    tile("Open interest", fmt(last.v), shortDay(D.dates[last.i]));
     if (prev) tile("Change from " + shortDay(D.dates[prev.i]), signed(last.v - prev.v), percent(last.v, prev.v));
     if (pts.length > 2) tile("Change from " + shortDay(D.dates[first.i]), signed(last.v - first.v), percent(last.v, first.v));
-    if (!prev) tile("Change", "—", "No earlier day saved yet");
 
     renderChart(o, pts);
 

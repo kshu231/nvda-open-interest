@@ -136,9 +136,9 @@ copy until the next pull.
 
 #### Live price
 
-The card can follow the stock's trades as they happen. On the "Live price:
-off" line under the card's heading, "Turn on", paste a Finnhub API key (free
-at https://finnhub.io/register) and "Connect". The page then streams the
+The card can follow the stock's trades as they happen. Click "Live price"
+under the card's heading, paste a Finnhub API key (free at
+https://finnhub.io/register) and "Connect". The page then streams the
 stock's trades (NVDA's or SPY's) from Finnhub's websocket and redraws the card
 at the latest price, at
 most once a second: the bars, the tiles, the table and the spot line. Time to
@@ -257,8 +257,8 @@ The reverse happens in the evening: the OCC posts the day's numbers to
 series-search hours before its date moves on (that catches up by morning). So
 after the close a run compares series-search with the file saved for the date
 the OCC reports. Unchanged means the day's numbers aren't out yet (exit `75`);
-changed means they are, and they are saved under that day's date, with "posted
-after the close" on the page. If the reported day was never saved, a run saves
+changed means they are, and they are saved under that day's date. If the
+reported day was never saved, a run saves
 it only while that day's own expiring options are still listed, which only its
 data does; otherwise it saves nothing and exits `75`. The next morning's run
 checks the day again against the OCC's dated data and replaces it if the OCC

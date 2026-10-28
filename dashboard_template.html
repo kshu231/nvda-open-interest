@@ -68,8 +68,7 @@
   }
   .pages a[href]:hover { background: var(--wash); color: var(--ink); }
   .pages a[aria-current] { background: var(--wash); color: var(--ink); font-weight: 650; }
-  .meta, .showing { color: var(--ink-2); margin: 0; }
-  .showing strong { color: var(--ink-2); font-weight: 650; }
+  .meta { color: var(--ink-2); margin: 0; }
   .warning {
     margin: 12px 0 0; padding: 8px 12px; border: 1px solid var(--border);
     border-radius: 8px; background: var(--wash); font-weight: 600;
@@ -92,7 +91,6 @@
   .stats th, .stats td { padding: 10px 6px; border-bottom: 1px solid var(--grid); }
 
   .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 12px 0 6px; font-size: 13px; color: var(--ink-2); }
-  .legend .hint { margin-left: auto; color: var(--muted); }
   .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
   .plot { position: relative; margin-top: 4px; }
   .gridlines, .axis { position: absolute; left: var(--label-w); right: var(--value-w); }
@@ -117,13 +115,12 @@
     margin-left: 8px; font-size: 13px; font-weight: 650; white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }
-  .axis-band { position: relative; height: 48px; }
+  .axis-band { position: relative; height: 26px; }
   .axis { top: 6px; }
   .axis span {
     position: absolute; transform: translateX(-50%); font-size: 12px; color: var(--muted);
     font-variant-numeric: tabular-nums;
   }
-  .axis-title { position: absolute; right: var(--value-w); bottom: 0; font-size: 12px; color: var(--muted); }
   .empty { padding: 24px 0; color: var(--ink-2); }
 
   /* Gamma exposure: level tiles, then two plots on one strike axis (bars, profile). */
@@ -152,15 +149,13 @@
   .gx-cross { stroke: var(--muted); }
   .gx-dot { stroke: var(--surface); stroke-width: 2; }
   .gx-bar.on { filter: brightness(1.15); }
-  .note { margin: 12px 0 0; font-size: 12px; color: var(--muted); }
   details.table-view { margin-top: 8px; font-size: 13px; color: var(--ink-2); }
   details.table-view summary { cursor: pointer; width: fit-content; }
-  /* Live price: a status line under the card's "Showing" line, with its controls. */
+  /* Live price: a status line under the card's date line, with its controls. */
   .live {
     display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 10px 0 0;
     font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums;
   }
-  .live b { color: var(--ink); font-weight: 650; }
   .live .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--axis); flex: none; }
   .live.on .dot { background: var(--ink); animation: beat 2s ease-in-out infinite; }
   @keyframes beat { 50% { opacity: 0.3; } }
@@ -176,8 +171,6 @@
     font: inherit; color: var(--ink); background: var(--surface); width: 26ch; min-width: 0;
     border: 1px solid var(--border); border-radius: 8px; padding: 5px 10px;
   }
-  .live .hint { flex-basis: 100%; margin: 0; font-size: 12px; color: var(--muted); }
-  .live .hint a { color: inherit; }
 
   .expiries { margin-top: 12px; font-size: 14px; }
   .expiries th, .expiries td { padding: 7px 8px; text-align: right; border-bottom: 1px solid var(--grid); }
@@ -215,7 +208,6 @@
     .filters { gap: 12px; }
     .filters label { flex: 1 1 130px; }
     select { width: 100%; }
-    .legend .hint { margin-left: 0; flex-basis: 100%; }
     .live input { flex: 1 1 140px; }
   }
 </style>
@@ -264,17 +256,16 @@
 
   <section class="card">
     <h2>Open Interest Stats</h2>
-    <p class="showing" id="showing-stats"></p>
     <table class="stats"><tbody id="stats"></tbody></table>
   </section>
 
   <section class="card" id="gex-card" hidden>
     <h2>Gamma Exposure</h2>
-    <p class="showing" id="showing-gex"></p>
+    <p class="meta" id="gex-meta"></p>
     <div class="live" id="live">
-      <i class="dot" aria-hidden="true"></i>
+      <i class="dot" aria-hidden="true" hidden></i>
       <span id="live-status"></span>
-      <button type="button" id="live-on">Turn on</button>
+      <button type="button" id="live-on">Live price</button>
       <button type="button" id="live-retry" hidden>Try again</button>
       <button type="button" id="live-off" hidden>Turn off</button>
       <form id="live-form" hidden>
@@ -282,14 +273,12 @@
                autocomplete="off" autocapitalize="off" spellcheck="false" required>
         <button type="submit">Connect</button>
         <button type="button" id="live-cancel">Cancel</button>
-        <p class="hint">A free key from <a href="https://finnhub.io/register" target="_blank" rel="noopener">finnhub.io</a>.
-          It stays in this browser and goes only to Finnhub.</p>
       </form>
     </div>
     <div class="tiles" id="gex-tiles"></div>
     <div class="legend">
-      <span><i class="swatch" style="background:var(--call)"></i>Net positive (calls outweigh puts)</span>
-      <span><i class="swatch" style="background:var(--put)"></i>Net negative (puts outweigh calls)</span>
+      <span><i class="swatch" style="background:var(--call)"></i>Net positive</span>
+      <span><i class="swatch" style="background:var(--put)"></i>Net negative</span>
     </div>
     <div id="gex-chart"></div>
     <details class="table-view" id="gex-details">
@@ -301,28 +290,20 @@
         </table>
       </div>
     </details>
-    <p class="note">Calls count as positive and puts as negative, the usual assumption that dealers are
-      long calls and short puts. Gamma is Black-Scholes at each strike's out-of-the-money implied volatility.
-      Source: Cboe delayed quotes, 15 minutes behind; open interest changes once a day. A live price
-      (Finnhub) recomputes everything from the latest trade once a second; implied volatility, volume and
-      open interest stay the snapshot's.</p>
   </section>
 
   <section class="card">
     <h2>Highest Open Interest Options</h2>
-    <p class="showing" id="showing-rank"></p>
     <div class="legend">
       <span><i class="swatch" style="background:var(--call)"></i>Calls</span>
       <span><i class="swatch" style="background:var(--put)"></i>Puts</span>
-      <span class="hint">Select an option to see its history</span>
     </div>
     <div class="plot" id="plot"></div>
-    <div class="axis-band"><div class="axis" id="axis"></div><span class="axis-title">Open interest</span></div>
+    <div class="axis-band"><div class="axis" id="axis"></div></div>
   </section>
 
   <section class="card">
     <h2>All Expirations</h2>
-    <p class="showing">Select a row to rank that expiration.</p>
     <div class="scroll">
       <table class="expiries">
         <thead><tr><th>Expiration</th><th>Call OI</th><th>Put OI</th><th>Total OI</th><th>Put/call</th></tr></thead>
@@ -369,9 +350,6 @@
   var grand = expiries.reduce(function (a, e) {
     return { call: a.call + byExpiry[e].call, put: a.put + byExpiry[e].put };
   }, { call: 0, put: 0 });
-  var expired = {};
-  listed.forEach(function (r) { if (!byExpiry[r.expiry]) expired[r.expiry] = true; });
-  expired = Object.keys(expired).sort();
 
   function weekday(iso) {
     return new Date(iso + "T12:00:00").toLocaleDateString("en-US", { weekday: "short" });
@@ -411,11 +389,9 @@
   if (linked === "all" || byExpiry[linked]) state.expiry = linked;
   var ready = false;
 
-  $("meta").textContent = "Data as of " + D.asofText + (D.retrieved ? " · retrieved " + D.retrieved : "");
+  $("meta").textContent = "As of " + D.asof;
   if (D.warning) { $("warning").hidden = false; $("warning").textContent = D.warning; }
-  $("footer").textContent = "Source: OCC series-search. Standard listed options only" +
-    (D.excluded ? "; excludes " + D.excluded + "." : ".") +
-    (expired.length ? " Not shown, already expired: " + expired.join(", ") + "." : "");
+  $("footer").textContent = "Source: OCC" + (D.gex ? ", Cboe" : "");
 
   // The same page for each symbol, opened on the same expiration when that symbol has it.
   var symbolLinks = (D.symbolPages || []).map(function (pair) {
@@ -437,25 +413,14 @@
   all.value = "all";
   expirySelect.appendChild(all);
 
-  function scopeText() {
-    var scope = state.expiry === "all" ? "all expirations" : state.expiry + " expiration";
-    var side = state.side === "both" ? "calls & puts" : state.side + "s";
-    return [D.symbol + ", " + scope, side];
-  }
-  function showing(node, withSide) {
-    var s = scopeText();
-    node.textContent = "Showing results for ";
-    node.appendChild(el("strong", "", withSide ? s[0] + ", " + s[1] : s[0] + ", calls & puts"));
-  }
-
   function renderStats() {
     var t = state.expiry === "all" ? grand : byExpiry[state.expiry];
     var body = $("stats");
     body.textContent = "";
-    [["Call Open Interest Total", fmt(t.call)],
-     ["Put Open Interest Total", fmt(t.put)],
-     ["Open Interest Total", fmt(t.call + t.put)],
-     ["Put-Call Open Interest Ratio", ratio(t.call, t.put)]].forEach(function (pair) {
+    [["Calls", fmt(t.call)],
+     ["Puts", fmt(t.put)],
+     ["Total", fmt(t.call + t.put)],
+     ["Put/call ratio", ratio(t.call, t.put)]].forEach(function (pair) {
       var tr = el("tr");
       var th = el("th", "", pair[0]);
       th.scope = "row";
@@ -463,7 +428,6 @@
       tr.appendChild(el("td", "", pair[1]));
       body.appendChild(tr);
     });
-    showing($("showing-stats"), false);
   }
 
   function niceStep(max) {
@@ -507,7 +471,6 @@
     var plot = $("plot"), axis = $("axis");
     plot.textContent = "";
     axis.textContent = "";
-    showing($("showing-rank"), true);
     if (!ranked.length) {
       plot.appendChild(el("p", "empty", "No open interest for this selection."));
       return;
@@ -836,7 +799,7 @@
     });
 
     // Plot 2: the profile, coloured by sign like the bars.
-    text(left, top2 - 12, "start", "gx-title", "Gamma profile: net exposure by stock price");
+    text(left, top2 - 12, "start", "gx-title", "Gamma profile");
     var count = Math.max(40, Math.min(160, Math.round(plotW / 4))), shape = lo + " " + hi + " " + count;
     if (!m.profile || m.profile.shape !== shape) {
       m.profile = { shape: shape, points: [] };
@@ -889,7 +852,7 @@
       tip.textContent = "";
       tip.appendChild(el("b", "", money(net[n], true)));
       tip.appendChild(el("div", "", (b.to === undefined || b.to === b.from ? "Strike " + price(b.from || b.k)
-        : "Strikes " + price(b.from) + " to " + price(b.to)) + ", net per 1% move"));
+        : "Strikes " + price(b.from) + " to " + price(b.to))));
       [["call", "Calls ", b.call, b.calls], ["put", "Puts ", -b.put, b.puts]].forEach(function (side) {
         var row = el("div"), key = el("i", "key");
         key.style.background = "var(--" + side[0] + ")";
@@ -961,11 +924,7 @@
     if (!has) return;
     var lp = livePrice(), spot = lp ? lp.price : G.spot, byVolume = state.basis === "volume";
     live.drawn = liveMark(lp);
-    var showingGex = $("showing-gex");
-    showingGex.textContent = "Showing results for ";
-    showingGex.appendChild(el("strong", "", scopeText()[0] + ", by " + (byVolume ? "today's volume" : "open interest")));
-    showingGex.appendChild(document.createTextNode(" · dollars per 1% move · " +
-      (lp ? "live price, option quotes as of " : "quotes as of ") + quoteTime()));
+    $("gex-meta").textContent = "Per 1% move · quotes as of " + quoteTime();
 
     var m = gexModel(lp), tiles = $("gex-tiles"), head = $("gex-table-head"), body = $("gex-table");
     tiles.textContent = head.textContent = body.textContent = "";
@@ -982,7 +941,7 @@
     }
     var levels = gexLevels(m, spot);
     [["Net exposure", money(levels.net, true)],
-     [lp ? "Spot (live)" : "Spot", spot.toFixed(2)],
+     ["Spot", spot.toFixed(2)],
      ["Call wall", levels.callWall === null ? "n/a" : price(levels.callWall)],
      ["Put wall", levels.putWall === null ? "n/a" : price(levels.putWall)],
      ["Zero gamma", levels.flip === null ? "None nearby" : levels.flip.toFixed(1)]].forEach(function (pair) {
@@ -1135,26 +1094,25 @@
       minute: "2-digit", second: "2-digit" }) + " ET";
   }
 
+  // Off, it is just the button; on, a dot and the state (the price itself is the Spot tile).
   function renderLive() {
-    var on = !!live.key, editing = !$("live-form").hidden, lp = livePrice(), status = $("live-status"), text;
-    $("live").classList.toggle("on", !!(lp && live.state === "open"));
+    var on = !!live.key, editing = !$("live-form").hidden, lp = livePrice(), text = "";
+    var streaming = !!(lp && live.state === "open");
+    $("live").classList.toggle("on", streaming);
+    $("live").querySelector(".dot").hidden = !on;
     $("live-on").hidden = on || editing;
     $("live-off").hidden = !on;
     $("live-retry").hidden = live.state !== "failed";
-    status.textContent = "Live price: ";
-    if (!on) text = "off";
-    else if (live.state === "failed") text = live.message ? "Finnhub said “" + live.message + "”."
-      : live.dropped ? "Finnhub keeps closing the connection. Is the key in use on another open page?"
-      : "couldn't connect to Finnhub. Check the key and the connection.";
-    else if (live.state === "retrying") text = "connection lost, reconnecting…";
-    else if (live.state === "open" && lp) {
-      status.appendChild(el("b", "", D.symbol + " " + lp.price.toFixed(2)));
-      text = " at " + tradeTime(lp.time);
-    }
-    else if (live.state === "open") text = "connected, waiting for a trade";
-    else if (live.state === "paused" || document.hidden) text = "paused while the page is hidden";
-    else text = "connecting to Finnhub…";
-    status.appendChild(document.createTextNode(text));
+    if (!on) text = "";
+    else if (live.state === "failed") text = live.message ? "Finnhub: " + live.message
+      : live.dropped ? "Connection keeps closing (key open on another page?)" : "Couldn't connect to Finnhub";
+    else if (live.state === "retrying") text = "Reconnecting…";
+    else if (streaming) text = "Live · " + tradeTime(lp.time);
+    else if (live.state === "open") text = "Live · waiting for a trade";
+    else if (live.state === "paused" || document.hidden) text = "Paused";
+    else text = "Connecting…";
+    $("live-status").textContent = text;
+    $("live-status").hidden = !text;
   }
 
   $("live-on").addEventListener("click", function () {
