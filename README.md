@@ -180,9 +180,10 @@ nothing, and a push or "Run workflow" always republishes. A symbol with
 nothing new, or whose pull failed, goes up with its pages rebuilt from its
 saved data, so one symbol never holds the other back; a failure still turns
 the run red. It is started through the evening, when the day's numbers
-usually appear (they were out by 21:06 Eastern on 2026-10-08), so the page can
-show a day's close the same evening, and again before the next open in case
-the evening missed it.
+appear, so the page can show a day's close the same evening, and again before
+the next open in case the evening missed it. In October 2026 they came out
+between 20:45 and 21:45 Eastern from Monday to Thursday, and between 21:50 and
+23:15 on Fridays, the latest on the monthly expiration of 10/16.
 
 `.github/workflows/gex.yml` ("Gamma exposure refresh") refreshes the gamma
 exposure charts every 30 minutes through the market day. It pulls Cboe for
@@ -207,7 +208,7 @@ start the workflows through GitHub's API instead. Both use the time zone
 | Job | Frequency | URL ends in | Body |
 |---|---|---|---|
 | `nvda-open-interest` | `15,45 9-16 * * 1-5` | `gex.yml/dispatches` | `{"ref":"main"}` |
-| `nvda-oi-daily` | `15,45 8,20-23 * * 1-5` | `daily.yml/dispatches` | `{"ref":"main","inputs":{"timer":"true"}}` |
+| `nvda-oi-daily` | `*/10 8,20-23 * * 1-5` | `daily.yml/dispatches` | `{"ref":"main","inputs":{"timer":"true"}}` |
 
 The URLs begin
 `https://api.github.com/repos/kshu231/nvda-open-interest/actions/workflows/`.
@@ -221,7 +222,7 @@ jobs. GitHub answers `204` when a run has been started.
   day, when it was saved (Eastern), what started the run and its run number.
   `scheduler` is the job above, `dispatch` is "Run workflow" or any other
   caller of GitHub's API, `push` is a change to the code. With the job firing
-  every half hour, the row shows which firing first found the day's numbers,
+  every 10 minutes, the row shows which firing first found the day's numbers,
   and the firing before it is the last one that did not. Use it to narrow the
   job's hours.
 - The first job's 9:15 and 16:45 firings fall outside market hours and end
