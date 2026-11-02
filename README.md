@@ -121,7 +121,8 @@ own strike range and open interest / volume pickers.
 - Gamma is Black-Scholes, computed in the browser from one implied volatility
   per strike (the out-of-the-money side's), a 4% rate and time to the 16:00
   Eastern close on expiration day, floored at 30 minutes.
-- Quotes are 15 minutes delayed. Open interest changes once a day, so between
+- Cboe's quotes are 15 minutes delayed (the hosted page uses Schwab's live
+  ones while it can; see below). Open interest changes once a day, so between
   pulls only the stock price and implied volatility move the chart.
 - A pull that fails, or that lacks implied volatility on more than a fifth of
   the strikes within 10% of spot, exits with an error and keeps the previous
@@ -163,6 +164,56 @@ day; what moves is the price against them, and the exposure at it.
 - The connection closes while the page is hidden and reopens when it is
   shown. After three failed tries in a row it stops, says why and goes back
   to the snapshot's price; "Try again" restarts it.
+
+#### Live quotes from Schwab
+
+The hosted page also asks a small service of ours, `live_server.py` on Google
+Cloud Run, for the selected expiration's chain from Schwab's Trader API: on
+opening, whenever the expiration changes, and once a minute while the page is
+shown. Schwab's quotes are real time (measured 2 to 14 seconds behind on
+2026-11-02), so the price, implied volatility and volume are current; the
+card's date line names the source. Open interest is still the OCC's: Schwab
+reports none on about a tenth of it, so the page puts in the OCC's numbers it
+already holds (and keeps Schwab's only for an expiration listed since the
+OCC's day). If the service fails, or its last reply is over three minutes old,
+the card goes back to the Cboe snapshot and its date line says why.
+
+- One expiration is one Schwab call, under a second. "All expirations" is one
+  call for NVDA (3 seconds) and five for SPY, whose whole chain is too big for
+  one (about 10 seconds; the first ever also spends 9 seconds finding that out).
+- Nothing is stored. The service keeps a reply in memory for 15 seconds (45
+  for all expirations), so several pages share one call, and it stops calling
+  Schwab beyond 60 calls a minute, half of Schwab's limit of 120 per app.
+- It answers only pages served from `https://kshu231.github.io` (other
+  websites are refused), only for the symbols in `nvda_oi.SYMBOLS` and for
+  expirations up to three years out. Anyone with its address can still call it
+  outside a browser.
+- `nvda_oi.LIVE_API` holds its address; `None` turns the live quotes off.
+
+Schwab's login lasts 7 days. Renew it in a terminal on this Mac:
+
+```bash
+.venv/bin/python schwab_login.py
+```
+
+It opens Schwab's login in the browser; paste the address the browser lands
+on (it fails to load, as expected) straight away, since its code lasts
+seconds. The login goes to Secret Manager (secret `schwab-credentials`), and
+the service picks it up within 5 minutes. On the login's last day the card's
+date line says when it runs out. The first run also asks for the app key, the
+app secret and the callback URL (`https://127.0.0.1`), kept in
+`~/.config/schwab-probe/credentials.json`, readable by this user only.
+`--no-login` saves this Mac's current login without signing in again.
+
+To deploy the service after changing it (project `nvda-open-interest`; the
+`Dockerfile` and `.gcloudignore` take only the four files it runs):
+
+```bash
+gcloud run deploy schwab-live --source . --project nvda-open-interest --region us-central1 --allow-unauthenticated --max-instances 1 --memory 512Mi --set-env-vars ALLOWED_ORIGINS=https://kshu231.github.io
+```
+
+`schwab_probe.py` is the test that measured all this; run by hand, it reports
+how fresh the chains are and how long the calls take.
 
 ### On a phone, or anywhere
 

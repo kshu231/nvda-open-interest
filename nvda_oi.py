@@ -45,6 +45,9 @@ SYMBOLS = ("NVDA", "SPY")
 HISTORY_DAYS = 60
 HISTORY_BUDGET = 2_000_000
 HISTORY_TOP = 50
+# The live gamma exposure service (live_server.py on Google Cloud Run); the dashboard
+# asks it for Schwab's quotes. None leaves the chart on Cboe's delayed ones.
+LIVE_API = "https://schwab-live-622871132346.us-central1.run.app"
 
 SERIES_URL = "https://marketdata.theocc.com/series-search?symbolType=U&symbol={symbol}"
 OI_DATE_URL = "https://marketdata.theocc.com/mdapi/open-interest?report_date={date:%m/%d/%Y}"
@@ -594,6 +597,7 @@ def save_dashboard(symbol, asof_label, all_rows, warning, path: Path) -> None:
         "rows": all_rows,
         "gex": gex,
         "gexFile": gex_path_for(symbol).name,
+        "liveApi": LIVE_API,
     }, path)
 
 

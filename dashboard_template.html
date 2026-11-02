@@ -391,7 +391,6 @@
 
   $("meta").textContent = "As of " + D.asof;
   if (D.warning) { $("warning").hidden = false; $("warning").textContent = D.warning; }
-  $("footer").textContent = "Source: OCC" + (D.gex ? ", Cboe" : "");
 
   // The same page for each symbol, opened on the same expiration when that symbol has it.
   var symbolLinks = (D.symbolPages || []).map(function (pair) {
@@ -536,9 +535,11 @@
   }
 
   // ---- Gamma exposure ------------------------------------------------------
-  // G is nvda_gex.py's snapshot: the stock price and, per expiration, years to
-  // expiry `t` and rows of [strike, call OI, put OI, call volume, put volume, IV].
-  var G = D.gex;
+  // G is the snapshot drawn: the stock price and, per expiration, years to expiry `t` and
+  // rows of [strike, call OI, put OI, call volume, put volume, IV]. It is the selection's
+  // live one from Schwab (see Live quotes below) while that is fresh, else nvda_gex.py's
+  // from Cboe, 15 minutes delayed.
+  var cboe = D.gex, G = cboe;
   var SVG_NS = "http://www.w3.org/2000/svg";
   var MINUS = "−";
 
@@ -685,11 +686,11 @@
     return out;
   }
 
-  // The strike window centres on the snapshot's price and stays put while a live price
-  // moves within half the range of it, so the bars don't slide with every trade.
+  // The strike window centres on the price and stays put while the price moves within
+  // half the range of it, so the bars don't slide with every trade or new snapshot.
   var centre = {};
   function windowCentre(spot) {
-    if (centre.G !== G || Math.abs(spot - centre.at) > centre.at * state.range / 2) centre = { G: G, at: spot };
+    if (!centre.at || Math.abs(spot - centre.at) > centre.at * state.range / 2) centre = { at: spot };
     return centre.at;
   }
 
@@ -919,12 +920,15 @@
   }
 
   function renderGex(keep) {
+    G = liveSnapshot() || cboe;
+    $("footer").textContent = "Source: OCC" + (G ? ", " + (G.source || "Cboe") : "");
     var has = !!(G && G.expiries && G.expiries.length);
     $("gex-card").hidden = $("range-filter").hidden = $("basis-filter").hidden = !has;
     if (!has) return;
     var lp = livePrice(), spot = lp ? lp.price : G.spot, byVolume = state.basis === "volume";
     live.drawn = liveMark(lp);
-    $("gex-meta").textContent = "Per 1% move · quotes as of " + quoteTime();
+    $("gex-meta").textContent = ["Per 1% move", (G.source || "Cboe") + " quotes as of " + quoteTime()]
+      .concat(quotesProblem()).join(" · ");
 
     var m = gexModel(lp), tiles = $("gex-tiles"), head = $("gex-table-head"), body = $("gex-table");
     tiles.textContent = head.textContent = body.textContent = "";
@@ -970,13 +974,73 @@
     fetch(D.gexFile + "?t=" + Date.now(), { cache: "no-store" })
       .then(function (response) { return response.ok ? response.json() : null; })
       .then(function (snapshot) {
-        if (snapshot && snapshot.expiries && (!G || Date.parse(snapshot.quoteTime) > Date.parse(G.quoteTime))) {
-          G = snapshot;
+        if (snapshot && snapshot.expiries && (!cboe || Date.parse(snapshot.quoteTime) > Date.parse(cboe.quoteTime))) {
+          cboe = snapshot;
           renderGex();
           connectLive();
         }
       })
       .catch(function () {});
+  }
+
+  // ---- Live quotes -----------------------------------------------------------
+  // While the page is shown it asks the live service (live_server.py) for the selected
+  // expiration's chain from Schwab, once a minute and whenever the selection changes. Its
+  // open interest is Schwab's, missing on some contracts, so the OCC's from this page
+  // replaces it. A reply over three minutes old, or none, leaves the chart on Cboe's.
+  var LIVE_EVERY = 60 * 1000, LIVE_KEEP = 3 * 60 * 1000;
+  var quotes = { got: {}, asking: {}, problem: "", expires: null };
+  var occ = {};
+  rows.forEach(function (r) { occ[r.expiry + " " + (+r.strike) + " " + r.side] = r.oi; });
+
+  function liveSnapshot() {
+    var got = quotes.got[state.expiry];
+    return got && Date.now() - got.at < LIVE_KEEP && got.snapshot.expiries.length ? got.snapshot : null;
+  }
+  function withOccInterest(snapshot) {
+    snapshot.expiries.forEach(function (e) {
+      if (!byExpiry[e.date]) return;  // listed since the OCC's day: Schwab's is all there is
+      e.rows.forEach(function (r) {
+        r[1] = occ[e.date + " " + r[0] + " call"] || 0;
+        r[2] = occ[e.date + " " + r[0] + " put"] || 0;
+      });
+    });
+    return snapshot;
+  }
+  // What stands between the chart and live quotes, or the login's last day.
+  function quotesProblem() {
+    if (!D.liveApi) return [];
+    if (quotes.problem && !liveSnapshot()) return ["Schwab: " + quotes.problem];
+    var left = quotes.expires ? Date.parse(quotes.expires) - Date.now() : Infinity;
+    if (left < 864e5) return [left > 0 ? "Schwab login runs out " + tradeTime(Date.parse(quotes.expires))
+                                       : "Schwab login ran out"];
+    return [];
+  }
+  function fetchQuotes() {
+    var expiry = state.expiry;
+    if (!D.liveApi || document.hidden || quotes.asking[expiry]) return;
+    var got = quotes.got[expiry];
+    if (got && Date.now() - got.at < LIVE_EVERY - 5000) return;
+    quotes.asking[expiry] = true;
+    fetch(D.liveApi + "/chain?symbol=" + encodeURIComponent(D.symbol) + "&expiry=" + encodeURIComponent(expiry))
+      .then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (body) {
+          if (!response.ok || !body.expiries) throw new Error(body.error || "HTTP " + response.status);
+          return body;
+        });
+      })
+      .then(function (snapshot) {
+        quotes.got[expiry] = { at: Date.now(), snapshot: withOccInterest(snapshot) };
+        quotes.problem = "";
+        quotes.expires = snapshot.loginExpires || null;
+      })
+      .catch(function (e) {
+        quotes.problem = e && e.message && e.message !== "Failed to fetch" ? e.message : "couldn't reach the live service";
+      })
+      .then(function () {
+        quotes.asking[expiry] = false;
+        if (expiry === state.expiry) { redrawGex(); connectLive(); }
+      });
   }
 
   // ---- Live price ------------------------------------------------------------
@@ -1176,6 +1240,7 @@
     renderGex();
     renderRanking();
     renderExpiries();
+    fetchQuotes();
   }
 
   expirySelect.addEventListener("change", function () { state.expiry = expirySelect.value; render(); });
@@ -1198,6 +1263,8 @@
   refreshGex();
   setInterval(refreshGex, 5 * 60 * 1000);
   document.addEventListener("visibilitychange", refreshGex);
+  setInterval(fetchQuotes, 15 * 1000);  // it asks again only once the last reply is a minute old
+  document.addEventListener("visibilitychange", fetchQuotes);
   renderLive();
   connectLive();
 })();
