@@ -1,0 +1,7 @@
+# Only what the live service's image needs goes up to Cloud Build.
+*
+!Dockerfile
+!nvda_oi.py
+!nvda_gex.py
+!schwab_api.py
+!live_server.py
