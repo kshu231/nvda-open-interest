@@ -1,0 +1,9 @@
+date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_time_et,result,notes
+# NOTE: original log (10/30-11/13) was lost when the scratchpad was cleared on 11/14-16; summary stats preserved in oi_stats_weekly.md (rebuilt from conversation)
+2026-11-13,SPY,2026-11-13,CLOSE,,,,,,16:00,close 754.37 (Yahoo daily; intraday feed showed 754.21),14:45 magnet 752-753 -> miss ~1.4
+2026-11-16,SPY,2026-11-16,763,C+P,29310,,1,,,,open OI; spot 748.5 (-0.8%); MaxPain 753; netGEX -0.44B; VIX 21.2
+2026-11-16,SPY,2026-11-16,745,C+P,25634,,2,,,,
+2026-11-16,SPY,2026-11-16,750,C+P,18454,,3,,,,
+2026-11-16,SPY,2026-11-16,762,C,12529,,4,,,,
+2026-11-16,SPY,2026-11-16,760,C,12071,,5,,,,
+2026-11-16,NVDA,2026-11-16,160,C+P,35217,,1,,,,spot 160.8; MaxPain 162.5; 165C 16.7K; 157.5P 11.5K; earnings 11/17 AMC

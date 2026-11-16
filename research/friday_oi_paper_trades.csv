@@ -1,0 +1,4 @@
+open_date,open_time_et,expiry,structure,legs,open_price,spy_at_open,implied_win,events_crossed,close_price_fri,spy_close_fri,pnl_per_spread,notes
+2026-11-16,09:50,2026-11-20,call credit 1w,-770C/+771C,0.07,747.13,0.93,NVDA ER 11/17; FOMC minutes; OPEX,,,,candidate A; breakeven 93%; to confirm at 14:45
+2026-11-16,09:50,2026-11-20,put credit 1w,-730P/+729P,0.14,747.13,0.85,NVDA ER 11/17; FOMC minutes; OPEX,,,,candidate B; breakeven 86%; to confirm at 14:45
+2026-11-16,09:50,2026-11-20,call fly,+747C/-2x750C/+753C,0.25,747.13,,NVDA ER 11/17; FOMC minutes; OPEX,,,,candidate C; max 3.00 at 750
