@@ -7,3 +7,12 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-16,SPY,2026-11-16,762,C,12529,,4,,,,
 2026-11-16,SPY,2026-11-16,760,C,12071,,5,,,,
 2026-11-16,NVDA,2026-11-16,160,C+P,35217,,1,,,,spot 160.8; MaxPain 162.5; 165C 16.7K; 157.5P 11.5K; earnings 11/17 AMC
+2026-11-16,SPY,2026-11-16,763,C+P,29310,,1,no,,untested,HOD 749.82
+2026-11-16,SPY,2026-11-16,745,C+P,25634,572261,2,yes,10:26,broken->resistance,low 743.31 at 10:26; reclaimed to 746.6 by 11:30; lost ~11:50 and capped all afternoon; 745C OI 17113 isolated (25-50x neighbors); user call spread +370
+2026-11-16,SPY,2026-11-16,750,C+P,18454,229428,3,yes,09:30,held (resistance),open spike 749.82 rejected
+2026-11-16,SPY,2026-11-16,762,C,12529,,4,no,,untested,
+2026-11-16,SPY,2026-11-16,760,C,12071,,5,no,,untested,
+2026-11-16,SPY,2026-11-16,740,P,11143,530401,extra,yes,13:30,broken,trend day; 13:35 low 738.73 (-2.5σ) bounce to 740.9 then new low 738.3 at 14:45; user put spread -165
+2026-11-16,SPY,2026-11-16,MAGNET1445,,,,,,14:45,740 (C69K/P461K); spot 738.35,day type: trend (1σ 1.51@12:00 -> 2.93@14:45; VIX 23.5; QQQ -2.7%; SMH -4.8%)
+2026-11-16,NVDA,2026-11-16,160,C+P,35217,472833,1,yes,09:46-11:40,pivot then broken,pinned 158.9-160 until ~12:00; broke down to 155.01 at 13:36
+2026-11-16,NVDA,2026-11-16,MAGNET1445,,,,,,14:45,155 (C71K/P339K) near spot 155.57; 160 largest total vol but far,1σ 0.85@12:00 -> 1.80; earnings 11/17 AMC
