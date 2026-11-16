@@ -1,2 +1,3 @@
 date,symbol,expiry,structure,legs,qty,open_time_et,open_price,close_time_et,close_price,pnl,setup,notes
 2026-11-16,SPY,2026-11-16,call credit 1w,-745C/+746C,10,10:41,0.42,after 12:50,0.05,+370,isolated call OI wall,745C OI 17113 vs neighbors 192-1555 (25-50x); 745 broken 10:26 (low 743.31) then acted as resistance; spot ~745.5 at entry; closed at 0.05 (~88% of max profit)
+2026-11-16,SPY,2026-11-16,put credit 1w,-740P/+739P,5,~14:05,0.26,,,,put OI wall after test,740P OI 11143 (3-5x neighbors); trend day; LOD 738.73 at 13:35 (-2.5σ) then bounce; entered after 14:00 against trend rule; spot ~740.5
