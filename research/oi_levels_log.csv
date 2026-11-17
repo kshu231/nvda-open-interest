@@ -16,3 +16,14 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-16,SPY,2026-11-16,MAGNET1445,,,,,,14:45,740 (C69K/P461K); spot 738.35,day type: trend (1σ 1.51@12:00 -> 2.93@14:45; VIX 23.5; QQQ -2.7%; SMH -4.8%)
 2026-11-16,NVDA,2026-11-16,160,C+P,35217,472833,1,yes,09:46-11:40,pivot then broken,pinned 158.9-160 until ~12:00; broke down to 155.01 at 13:36
 2026-11-16,NVDA,2026-11-16,MAGNET1445,,,,,,14:45,155 (C71K/P339K) near spot 155.57; 160 largest total vol but far,1σ 0.85@12:00 -> 1.80; earnings 11/17 AMC
+2026-11-16,SPY,2026-11-16,CLOSE,,,,,,16:00,close 739.95,14:45 magnet 740 -> HIT (0.05)
+2026-11-16,NVDA,2026-11-16,CLOSE,,,,,,16:00,close 156.14,14:45 magnet 155 -> miss 1.14 (>0.75)
+2026-11-17,SPY,2026-11-17,750,C+P,12073,,1,,,,open OI; spot 738.3 (-0.2%); MaxPain 744; netGEX -0.58B; EM ±5.1; VIX 23.1; trend score pre-open 3/8 (VIX>20, GEX<0, NVDA ER AMC)
+2026-11-17,SPY,2026-11-17,760,C,10229,,2,,,,760C 8947
+2026-11-17,SPY,2026-11-17,740,C+P,10176,,3,,,,
+2026-11-17,SPY,2026-11-17,741,C+P,9407,,4,,,,
+2026-11-17,SPY,2026-11-17,745,C+P,8868,,5,,,,
+2026-11-17,NVDA,2026-11-18,160,C+P,28755,,1,,,,nearest expiry 11/18 (post-earnings); spot 155.4; MaxPain 160; straddle 13.05 (±8.4%)
+2026-11-17,NVDA,2026-11-18,155,C+P,14871,,2,,,,
+2026-11-17,NVDA,2026-11-18,157.5,C+P,9234,,3,,,,
+2026-11-17,NVDA,2026-11-18,152.5,C+P,5916,,4,,,,
