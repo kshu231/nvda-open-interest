@@ -2,6 +2,6 @@ open_date,open_time_et,expiry,structure,legs,open_price,spy_at_open,implied_win,
 2026-11-16,14:45,2026-11-20,call credit 1w,-770C/+771C,0.03,738.35,0.97,NVDA ER 11/17; FOMC minutes; OPEX,,,,candidate A; 9:50 quote 0.07 @747.13; Cboe px 740.14 (delayed)
 2026-11-16,14:45,2026-11-20,put credit 1w,-730P/+729P,0.24,738.35,0.76,NVDA ER 11/17; FOMC minutes; OPEX,,,,candidate B; 9:50 quote 0.14 @747.13; Cboe px 740.14 (delayed)
 2026-11-16,14:45,2026-11-20,call fly,+747C/-2x750C/+753C,0.20,738.35,,NVDA ER 11/17; FOMC minutes; OPEX,,,,candidate C; 9:50 quote 0.25 @747.13; max 3.00 at 750
-2026-11-17,09:50,2026-11-20,call credit 1w,-760C/+761C,0.10,738.32,0.895,NVDA ER 11/17; FOMC minutes; OPEX,,,,candidate A; BE 90%; to confirm at 14:45
-2026-11-17,09:50,2026-11-20,put credit 1w,-725P/+724P,0.20,738.32,0.80,NVDA ER 11/17; FOMC minutes; OPEX,,,,candidate B; 725P OI 71.7K largest Fri put wall; BE 80%; to confirm at 14:45
-2026-11-17,09:50,2026-11-20,call fly,+737C/-2x740C/+743C,0.23,738.32,,NVDA ER 11/17; FOMC minutes; OPEX,,,,candidate C; max 3.00 at 740 (11/16 close 739.95; 740 Fri OI 53.5K)
+2026-11-17,14:45,2026-11-20,call credit 1w,-760C/+761C,0.02,730.78,0.98,NVDA ER 11/17; FOMC minutes; OPEX,,,,candidate A; 9:50 quote 0.10 @738.32; too cheap to be worth it
+2026-11-17,14:45,2026-11-20,put credit 1w,-725P/+724P,0.29,730.78,0.71,NVDA ER 11/17; FOMC minutes; OPEX,,,,candidate B; 9:50 quote 0.20 @738.32; 725P OI 71.7K
+2026-11-17,14:45,2026-11-20,call fly,+737C/-2x740C/+743C,0.215,730.78,,NVDA ER 11/17; FOMC minutes; OPEX,,,,candidate C; 9:50 quote 0.23 @738.32; max 3.00 at 740
