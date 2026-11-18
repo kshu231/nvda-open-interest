@@ -38,3 +38,14 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-17,NVDA,2026-11-18,157.5,C+P,9234,25547,3,yes,09:31,held (resistance),HOD 157.46
 2026-11-17,NVDA,2026-11-18,152.5,C+P,5916,43787,4,yes,10:40,broken then reclaimed (support),low 150.33 at 10:53; back above by 11:00
 2026-11-17,NVDA,2026-11-18,MAGNET1445,,,,,,14:45,155 (C38K/P33K) spot 153.67 (1.33 away; expiry spans ER),1σ 1.96@11:02 -> 1.48; earnings AMC tonight
+2026-11-17,SPY,2026-11-17,CLOSE,,,,,,16:00,close 732.44,14:45 magnet 730 -> miss 2.44 (late rally)
+2026-11-17,NVDA,2026-11-18,CLOSE,,,,,,16:00,close 155.46,ER AMC: rev 115.8B vs 108.9B; Q4 guide ~130B vs 125B; GM guide 71-72%; AH +3-5%
+2026-11-18,SPY,2026-11-18,740,C+P,17686,,1,,,,open OI; open 734.66 (+0.3%) then -> 728.89 by 09:50; MaxPain 738; netGEX -0.86B; EM ±6.5; VIX 24.6
+2026-11-18,SPY,2026-11-18,744,C,12645,,2,,,,
+2026-11-18,SPY,2026-11-18,750,C,11931,,3,,,,
+2026-11-18,SPY,2026-11-18,745,C,9477,,4,,,,
+2026-11-18,SPY,2026-11-18,730,P,8218,,5,,,,also 718P 9701 / 720P 9543
+2026-11-18,NVDA,2026-11-18,150,P,26381,,1,,,,post-ER open 158.94 (+2.2%, implied ±8.2%) -> 153.35 by 09:50; MaxPain 157.5
+2026-11-18,NVDA,2026-11-18,155,C+P,28911,,2,,,,
+2026-11-18,NVDA,2026-11-18,152.5,P,11643,,3,,,,
+2026-11-18,NVDA,2026-11-18,157.5,C+P,12328,,4,,,,
