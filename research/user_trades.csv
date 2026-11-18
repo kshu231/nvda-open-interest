@@ -1,4 +1,4 @@
 date,symbol,expiry,structure,legs,qty,open_time_et,open_price,close_time_et,close_price,pnl,setup,notes
 2026-11-16,SPY,2026-11-16,call credit 1w,-745C/+746C,10,10:41,0.42,after 12:50,0.05,+370,isolated call OI wall,745C OI 17113 vs neighbors 192-1555 (25-50x); 745 broken 10:26 (low 743.31) then acted as resistance; spot ~745.5 at entry; closed at 0.05 (~88% of max profit)
 2026-11-16,SPY,2026-11-16,put credit 1w,-740P/+739P,5,~14:05,0.26,before 14:45,0.59,-165,put OI wall after test,740P OI 11143 (3-5x neighbors); trend day; LOD 738.73 at 13:35 (-2.5σ) then bounce; entered after 14:00 against trend rule; spot ~740.5
-2026-11-18,SPY,2026-11-18,call credit 1w,-732C/+733C,5,~11:47,0.22,~12:15,TBD,,trend-aligned above broken range,trend score 5/8; 730 broken 09:45 and double top 729.8 (11:24/11:34); short strike above VWAP 731.2; spot ~728
+2026-11-18,SPY,2026-11-18,call credit 1w,-732C/+733C,5,~11:47,0.22,~12:07,0.41,-95,trend-aligned above broken range,trend score 5/8; 730 broken 09:45 and double top 729.8 (11:24/11:34); short strike above VWAP 731.2; spot ~728; closed on 12:00 5m close 730.31 (marginal break) which then failed below VWAP 731.05 - premature stop
