@@ -49,3 +49,15 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-18,NVDA,2026-11-18,155,C+P,28911,,2,,,,
 2026-11-18,NVDA,2026-11-18,152.5,P,11643,,3,,,,
 2026-11-18,NVDA,2026-11-18,157.5,C+P,12328,,4,,,,
+2026-11-18,SPY,2026-11-18,740,C+P,17686,250591,1,no,,untested,HOD 735.06 (09:32)
+2026-11-18,SPY,2026-11-18,744,C,12645,102370,2,no,,untested,
+2026-11-18,SPY,2026-11-18,750,C,11931,19729,3,no,,untested,
+2026-11-18,SPY,2026-11-18,745,C,9477,60167,4,no,,untested,
+2026-11-18,SPY,2026-11-18,730,P,8218,679430,5,yes,09:45,broken->pivot->magnet,broken 09:45; double top 729.8 (11:24/11:34) as resistance; reclaimed 12:05; afternoon magnet; 14:45 spot 729.75
+2026-11-18,SPY,2026-11-18,734-735,C (vol),,,extra,yes,"09:32,10:00,12:30,13:40",held x4 (resistance),735C vol 270K / 734C 202K on OI ~4K; coincided with +1.28σ; FOMC minutes 14:00 -> -$1
+2026-11-18,SPY,2026-11-18,MAGNET1445,,,,,,14:45,730 (C215K/P465K); spot 729.75,day type: trend down to 11:21 (726.79) then range; 1σ 2.12@12:05 -> 1.89@14:36 (-11%); VIX 24.4
+2026-11-18,NVDA,2026-11-18,150,P,26381,399585,1,yes,14:46,testing,new LOD 150.56 at 14:46 into close
+2026-11-18,NVDA,2026-11-18,155,C+P,28911,450794,2,yes,09:40,broken->resistance,10:15 retest 154.90 failed
+2026-11-18,NVDA,2026-11-18,152.5,P,11643,455199,3,yes,10:45,broken->pivot,range 151.6-152.6 11:20-14:20 then lost
+2026-11-18,NVDA,2026-11-18,157.5,C+P,12328,194119,4,yes,09:34,broken (open spike 159.70 faded),post-ER sell the news
+2026-11-18,NVDA,2026-11-18,MAGNET1445,,,,,,14:45,150 (C49K/P351K) spot 150.65; largest total vol 152.5 (455K),1σ 2.52 flat; trend down
