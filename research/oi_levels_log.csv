@@ -61,3 +61,14 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-18,NVDA,2026-11-18,152.5,P,11643,455199,3,yes,10:45,broken->pivot,range 151.6-152.6 11:20-14:20 then lost
 2026-11-18,NVDA,2026-11-18,157.5,C+P,12328,194119,4,yes,09:34,broken (open spike 159.70 faded),post-ER sell the news
 2026-11-18,NVDA,2026-11-18,MAGNET1445,,,,,,14:45,150 (C49K/P351K) spot 150.65; largest total vol 152.5 (455K),1σ 2.52 flat; trend down
+2026-11-18,SPY,2026-11-18,CLOSE,,,,,,16:00,close 730.20,14:45 magnet 730 -> HIT (0.20) with VIX 24.4 (all pin conditions except VIX<20)
+2026-11-18,NVDA,2026-11-18,CLOSE,,,,,,16:00,close 150.96,14:45 magnet 150 -> miss 0.96 (>0.75); 150P held (LOD 150.40)
+2026-11-19,SPY,2026-11-19,748,C,9561,,1,,,,open OI; gap up open 738.07 (+1.08%) -> 738.91 at 09:50; MaxPain 733; netGEX +1.16B; EM ±5.3; VIX 22.3
+2026-11-19,SPY,2026-11-19,731,C+P,8993,,2,,,,
+2026-11-19,SPY,2026-11-19,740,C+P,8439,,3,,,,
+2026-11-19,SPY,2026-11-19,745,C,8002,,4,,,,
+2026-11-19,SPY,2026-11-19,730,C+P,7839,,5,,,,also 733 C3.3K/P4.0K; 720P 6.96K
+2026-11-19,NVDA,2026-11-20,160,C+P,89463,,1,,,,nearest expiry 11/20; open 154.29 -> 157.0 at 09:50 (+4.0%); MaxPain 170 (n/a); EM ±4.8
+2026-11-19,NVDA,2026-11-20,155,C+P,53468,,2,,,,
+2026-11-19,NVDA,2026-11-20,157.5,C+P,23268,,3,,,,
+2026-11-19,NVDA,2026-11-20,152.5,C+P,15996,,4,,,,
