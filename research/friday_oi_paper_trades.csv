@@ -8,6 +8,6 @@ open_date,open_time_et,expiry,structure,legs,open_price,spy_at_open,implied_win,
 2026-11-18,14:45,2026-11-20,call credit 1w,-750C/+751C,0.06,729.75,0.94,OPEX,,,,candidate A; 750 Fri OI 90K; 9:50 est ~0.08
 2026-11-18,14:45,2026-11-20,put credit 1w,-715P/+714P,0.125,729.75,0.875,OPEX,,,,candidate B; below 725P/720P walls; 9:50 est ~0.18
 2026-11-18,14:45,2026-11-20,call fly,+727C/-2x730C/+733C,0.235,729.75,,OPEX,,,,candidate C; 9:50 0.205; 730 = 11/18 magnet (679K vol)
-2026-11-19,09:50,2026-11-20,call credit 1w,-750C/+751C,0.155,738.91,0.83,OPEX,,,,candidate A; 750 Fri OI 93.8K largest; BE 85% vs implied 83%; confirm at 14:45
-2026-11-19,09:50,2026-11-20,put credit 1w,-725P/+724P,0.10,738.91,0.89,OPEX,,,,candidate B; 725P 71.4K (+11.9K calls too); BE 90% vs implied 89%; confirm at 14:45
-2026-11-19,09:50,2026-11-20,call fly,+742C/-2x745C/+748C,0.345,738.91,,OPEX,,,,candidate C; center = Fri MaxPain 745; 3-wide; max 3.00
+2026-11-19,14:45,2026-11-20,call credit 1w,-750C/+751C,0.01,720.60,0.99,OPEX,,,,candidate A; 9:50 quote 0.155 @738.91; SPY -18 since; ~no credit left (bid 0)
+2026-11-19,14:45,2026-11-20,put credit 1w,-725P/+724P,0.55,720.60,0.45,OPEX,,,,candidate B; 9:50 quote 0.10 @738.91; now ITM (spot below 725)
+2026-11-19,14:45,2026-11-20,call fly,+742C/-2x745C/+748C,0.03,720.60,,OPEX,,,,candidate C; 9:50 0.345; Fri MaxPain 745 now $24 away

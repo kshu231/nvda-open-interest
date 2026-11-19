@@ -72,3 +72,15 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-19,NVDA,2026-11-20,155,C+P,53468,,2,,,,
 2026-11-19,NVDA,2026-11-20,157.5,C+P,23268,,3,,,,
 2026-11-19,NVDA,2026-11-20,152.5,C+P,15996,,4,,,,
+2026-11-19,SPY,2026-11-19,748,C,9561,37746,1,no,,untested,HOD 739.90
+2026-11-19,SPY,2026-11-19,731,C+P,8993,242617,2,yes,10:25,broken->resistance,
+2026-11-19,SPY,2026-11-19,740,C+P,8439,256925,3,yes,09:34,held (resistance),HOD 739.90 then gap-up reversal
+2026-11-19,SPY,2026-11-19,745,C,8002,111654,4,no,,untested,
+2026-11-19,SPY,2026-11-19,730,C+P,7839,422388,5,yes,10:30,broken->resistance,11:35-11:47 retest 731.7 then 11:50 flush
+2026-11-19,SPY,2026-11-20,725 (Fri),P,71414,,extra,yes,"10:39,11:52",held once (725.67) then broken -> resistance,11:50-11:53 flush 729.7->723.5; 12:06 LOD 717.55; 12:20-12:30 retest 726.35 rejected; user 725/724P stopped -300
+2026-11-19,SPY,2026-11-19,MAGNET1445,,,,,,14:45,720 (C113K/P355K); spot 720.60,day type: gap-up reversal trend day (+1.1% gap -> -1.3%); 1σ 4.8@12:00 -> 6.48; VIX 27.5 (hi 28.99); netGEX(0DTE) +1.16B at open did not stop trend
+2026-11-19,NVDA,2026-11-20,160,C+P,89463,205066,1,no,,untested,HOD 158.13
+2026-11-19,NVDA,2026-11-20,155,C+P,53468,247209,2,yes,10:05,broken->resistance,
+2026-11-19,NVDA,2026-11-20,157.5,C+P,23268,155082,3,yes,09:45,rejected (158.13) then broken,
+2026-11-19,NVDA,2026-11-20,152.5,C+P,15996,143776,4,yes,10:34,broken->resistance,
+2026-11-19,NVDA,2026-11-20,MAGNET1445,,,,,,14:45,150 (C64K/P158K) spot 148.35 (1.65 below; resistance),150P broken 12:00, retest 149.89 failed; 1σ 1.95@12:00 -> 3.05
