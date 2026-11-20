@@ -1,13 +1,13 @@
 open_date,open_time_et,expiry,structure,legs,open_price,spy_at_open,implied_win,events_crossed,close_price_fri,spy_close_fri,pnl_per_spread,notes
-2026-11-16,14:45,2026-11-20,call credit 1w,-770C/+771C,0.03,738.35,0.97,NVDA ER 11/17; FOMC minutes; OPEX,0.00,695.60,+0.030,candidate A; 9:50 quote 0.07 @747.13; Cboe px 740.14 (delayed); settled at 14:45 SPY proxy (final close TBD)
-2026-11-16,14:45,2026-11-20,put credit 1w,-730P/+729P,0.24,738.35,0.76,NVDA ER 11/17; FOMC minutes; OPEX,1.00,695.60,-0.760,candidate B; 9:50 quote 0.14 @747.13; Cboe px 740.14 (delayed); settled at 14:45 SPY proxy (final close TBD)
-2026-11-16,14:45,2026-11-20,call fly,+747C/-2x750C/+753C,0.20,738.35,,NVDA ER 11/17; FOMC minutes; OPEX,0.00,695.60,-0.200,candidate C; 9:50 quote 0.25 @747.13; max 3.00 at 750; settled at 14:45 SPY proxy (final close TBD)
-2026-11-17,14:45,2026-11-20,call credit 1w,-760C/+761C,0.02,730.78,0.98,NVDA ER 11/17; FOMC minutes; OPEX,0.00,695.60,+0.020,candidate A; 9:50 quote 0.10 @738.32; too cheap to be worth it; settled at 14:45 SPY proxy (final close TBD)
-2026-11-17,14:45,2026-11-20,put credit 1w,-725P/+724P,0.29,730.78,0.71,NVDA ER 11/17; FOMC minutes; OPEX,1.00,695.60,-0.710,candidate B; 9:50 quote 0.20 @738.32; 725P OI 71.7K; settled at 14:45 SPY proxy (final close TBD)
-2026-11-17,14:45,2026-11-20,call fly,+737C/-2x740C/+743C,0.215,730.78,,NVDA ER 11/17; FOMC minutes; OPEX,0.00,695.60,-0.215,candidate C; 9:50 quote 0.23 @738.32; max 3.00 at 740; settled at 14:45 SPY proxy (final close TBD)
-2026-11-18,14:45,2026-11-20,call credit 1w,-750C/+751C,0.06,729.75,0.94,OPEX,0.00,695.60,+0.060,candidate A; 750 Fri OI 90K; 9:50 est ~0.08; settled at 14:45 SPY proxy (final close TBD)
-2026-11-18,14:45,2026-11-20,put credit 1w,-715P/+714P,0.125,729.75,0.875,OPEX,1.00,695.60,-0.875,candidate B; below 725P/720P walls; 9:50 est ~0.18; settled at 14:45 SPY proxy (final close TBD)
-2026-11-18,14:45,2026-11-20,call fly,+727C/-2x730C/+733C,0.235,729.75,,OPEX,0.00,695.60,-0.235,candidate C; 9:50 0.205; 730 = 11/18 magnet (679K vol); settled at 14:45 SPY proxy (final close TBD)
-2026-11-19,14:45,2026-11-20,call credit 1w,-750C/+751C,0.01,720.60,0.99,OPEX,0.00,695.60,+0.010,candidate A; 9:50 quote 0.155 @738.91; SPY -18 since; ~no credit left (bid 0); settled at 14:45 SPY proxy (final close TBD)
-2026-11-19,14:45,2026-11-20,put credit 1w,-725P/+724P,0.55,720.60,0.45,OPEX,1.00,695.60,-0.450,candidate B; 9:50 quote 0.10 @738.91; now ITM (spot below 725); settled at 14:45 SPY proxy (final close TBD)
-2026-11-19,14:45,2026-11-20,call fly,+742C/-2x745C/+748C,0.03,720.60,,OPEX,0.00,695.60,-0.030,candidate C; 9:50 0.345; Fri MaxPain 745 now $24 away; settled at 14:45 SPY proxy (final close TBD)
+2026-11-16,14:45,2026-11-20,call credit 1w,-770C/+771C,0.03,738.35,0.97,NVDA ER 11/17; FOMC minutes; OPEX,0.00,690.87,+0.030,candidate A; 9:50 quote 0.07 @747.13; Cboe px 740.14 (delayed); settled at Fri close 690.87
+2026-11-16,14:45,2026-11-20,put credit 1w,-730P/+729P,0.24,738.35,0.76,NVDA ER 11/17; FOMC minutes; OPEX,1.00,690.87,-0.760,candidate B; 9:50 quote 0.14 @747.13; Cboe px 740.14 (delayed); settled at Fri close 690.87
+2026-11-16,14:45,2026-11-20,call fly,+747C/-2x750C/+753C,0.20,738.35,,NVDA ER 11/17; FOMC minutes; OPEX,0.00,690.87,-0.200,candidate C; 9:50 quote 0.25 @747.13; max 3.00 at 750; settled at Fri close 690.87
+2026-11-17,14:45,2026-11-20,call credit 1w,-760C/+761C,0.02,730.78,0.98,NVDA ER 11/17; FOMC minutes; OPEX,0.00,690.87,+0.020,candidate A; 9:50 quote 0.10 @738.32; too cheap to be worth it; settled at Fri close 690.87
+2026-11-17,14:45,2026-11-20,put credit 1w,-725P/+724P,0.29,730.78,0.71,NVDA ER 11/17; FOMC minutes; OPEX,1.00,690.87,-0.710,candidate B; 9:50 quote 0.20 @738.32; 725P OI 71.7K; settled at Fri close 690.87
+2026-11-17,14:45,2026-11-20,call fly,+737C/-2x740C/+743C,0.215,730.78,,NVDA ER 11/17; FOMC minutes; OPEX,0.00,690.87,-0.215,candidate C; 9:50 quote 0.23 @738.32; max 3.00 at 740; settled at Fri close 690.87
+2026-11-18,14:45,2026-11-20,call credit 1w,-750C/+751C,0.06,729.75,0.94,OPEX,0.00,690.87,+0.060,candidate A; 750 Fri OI 90K; 9:50 est ~0.08; settled at Fri close 690.87
+2026-11-18,14:45,2026-11-20,put credit 1w,-715P/+714P,0.125,729.75,0.875,OPEX,1.00,690.87,-0.875,candidate B; below 725P/720P walls; 9:50 est ~0.18; settled at Fri close 690.87
+2026-11-18,14:45,2026-11-20,call fly,+727C/-2x730C/+733C,0.235,729.75,,OPEX,0.00,690.87,-0.235,candidate C; 9:50 0.205; 730 = 11/18 magnet (679K vol); settled at Fri close 690.87
+2026-11-19,14:45,2026-11-20,call credit 1w,-750C/+751C,0.01,720.60,0.99,OPEX,0.00,690.87,+0.010,candidate A; 9:50 quote 0.155 @738.91; SPY -18 since; ~no credit left (bid 0); settled at Fri close 690.87
+2026-11-19,14:45,2026-11-20,put credit 1w,-725P/+724P,0.55,720.60,0.45,OPEX,1.00,690.87,-0.450,candidate B; 9:50 quote 0.10 @738.91; now ITM (spot below 725); settled at Fri close 690.87
+2026-11-19,14:45,2026-11-20,call fly,+742C/-2x745C/+748C,0.03,720.60,,OPEX,0.00,690.87,-0.030,candidate C; 9:50 0.345; Fri MaxPain 745 now $24 away; settled at Fri close 690.87
