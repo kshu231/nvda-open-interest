@@ -92,3 +92,12 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-20,SPY,2026-11-20,710,P,53112,,4,,,,
 2026-11-20,SPY,2026-11-20,715,P,46762,,5,,,,also 720P 44.6K / 718P 37.9K / 722P 34.3K
 2026-11-20,NVDA,2026-11-20,140,P,42012,,1,,,,OI as of 11/18 EOD; open 142.38 -> 140.32 at 09:50 (-3.9%); 141P 7.8K / 142P 4.8K
+2026-11-20,SPY,2026-11-20,725,C+P,86114,,1,no,,untested,HOD 718.29 (10:00)
+2026-11-20,SPY,2026-11-20,730,C+P,66773,,3,no,,untested,
+2026-11-20,SPY,2026-11-20,718-720,P,82512,,extra,yes,10:00,held (resistance),gap fill to 718.29 then reversal
+2026-11-20,SPY,2026-11-20,715,P,46762,,5,yes,10:15,broken->resistance,
+2026-11-20,SPY,2026-11-20,710,P,53112,,4,yes,10:30,broken->resistance,
+2026-11-20,SPY,2026-11-20,700,C+P,76896,,2,yes,12:07,held ~2h (pin 699.0-702.4 12:07-14:05) then broken 14:09,OPEX-day largest put wall pinned price for 2h inside a trend day; LOD 692.85 at 14:33; next walls 690P 29K / 680P 24K
+2026-11-20,SPY,2026-11-20,MAGNET1445,,,,,,14:45,n/a (Cboe volume unavailable); spot 695.60; nearest OI 695P 12K / 690P 29K,trend day; 1σ 4.16@12:07 -> 6.25@14:39; VIX 34.5 (+21%); QQQ -4.5%; SMH -9.3%
+2026-11-20,NVDA,2026-11-20,140,P,42012,,1,yes,10:10,broken->resistance,135P 28K held 12:00-14:05 then broken; LOD 128.75 at 14:33; 130P 18.5K / 125P 17.5K below
+2026-11-20,NVDA,2026-11-20,MAGNET1445,,,,,,14:45,n/a; spot 129.86 (near 130P 18.5K),-11.0% day; 1σ 2.6 -> 3.63
