@@ -84,3 +84,11 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-19,NVDA,2026-11-20,157.5,C+P,23268,155082,3,yes,09:45,rejected (158.13) then broken,
 2026-11-19,NVDA,2026-11-20,152.5,C+P,15996,143776,4,yes,10:34,broken->resistance,
 2026-11-19,NVDA,2026-11-20,MAGNET1445,,,,,,14:45,150 (C64K/P158K) spot 148.35 (1.65 below; resistance),150P broken 12:00, retest 149.89 failed; 1σ 1.95@12:00 -> 3.05
+2026-11-19,SPY,2026-11-19,CLOSE,,,,,,16:00,close 715.87,14:45 magnet 720 -> miss 4.13 (trend day; late selloff)
+2026-11-19,NVDA,2026-11-20,CLOSE,,,,,,16:00,close 145.98,14:45 magnet 150 -> miss 4.02
+2026-11-20,SPY,2026-11-20,725,C+P,86114,,1,,,,MONTHLY OPEX; OI as of 11/18 EOD (Cboe blocked by Cloudflare 11/20; site data not refreshed); open 711.88 (-0.56% gap) -> 713.2 at 09:50; MaxPain 745 (stale); netGEX ~-9.2B; VIX 29.4
+2026-11-20,SPY,2026-11-20,700,C+P,76896,,2,,,,
+2026-11-20,SPY,2026-11-20,730,C+P,66773,,3,,,,
+2026-11-20,SPY,2026-11-20,710,P,53112,,4,,,,
+2026-11-20,SPY,2026-11-20,715,P,46762,,5,,,,also 720P 44.6K / 718P 37.9K / 722P 34.3K
+2026-11-20,NVDA,2026-11-20,140,P,42012,,1,,,,OI as of 11/18 EOD; open 142.38 -> 140.32 at 09:50 (-3.9%); 141P 7.8K / 142P 4.8K
