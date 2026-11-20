@@ -102,18 +102,12 @@ the new day.
 
 ### Gamma exposure
 
-```bash
-.venv/bin/python nvda_gex.py                      # pull Cboe, write gex_NVDA.json
-.venv/bin/python nvda_gex.py --symbol SPY         # another underlying, gex_SPY.json
-.venv/bin/python nvda_gex.py --if-open            # only while the market's quotes are live
-```
-
-`nvda_gex.py` pulls Cboe's delayed option chain, saves `gex_NVDA.json` and
-swaps it into `dashboard_NVDA.html` if that page exists. The page's Gamma
-Exposure card then shows net exposure per strike, the gamma profile (net
-exposure if the stock traded at each price) and four levels: spot, call wall,
-put wall and zero gamma. It follows the page's expiration picker and has its
-own strike range and open interest / volume pickers.
+The dashboard's Gamma Exposure card shows net exposure per strike, the gamma
+profile (net exposure if the stock traded at each price) and four levels: spot,
+call wall, put wall and zero gamma. It follows the page's expiration picker and
+has its own strike range and open interest / volume pickers. Its quotes come
+from Schwab through the live service (see "Live quotes from Schwab" below); a
+page with no live service, such as a local file, has no card.
 
 - Exposure is dollars per 1% move: gamma x contracts x 100 x spot squared x 1%.
   Calls count as positive and puts as negative, the usual assumption that
@@ -121,20 +115,8 @@ own strike range and open interest / volume pickers.
 - Gamma is Black-Scholes, computed in the browser from one implied volatility
   per strike (the out-of-the-money side's), a 4% rate and time to the 16:00
   Eastern close on expiration day, floored at 30 minutes.
-- Cboe's quotes are 15 minutes delayed (the hosted page uses Schwab's live
-  ones while it can; see below). Open interest changes once a day, so between
-  pulls only the stock price and implied volatility move the chart.
-- A pull that fails, or that lacks implied volatility on more than a fifth of
-  the strikes within 10% of spot, exits with an error and keeps the previous
-  snapshot.
-- With `--if-open` nothing is pulled unless the delayed quotes are from today's
-  regular session (about 9:45 to 16:25 Eastern on trading days); otherwise it
-  exits `75` and the last snapshot, normally the close, stands.
-
-A hosted page fetches `gex_NVDA.json` from beside itself every 5 minutes and
-redraws when it is newer; a page opened as a local file keeps the embedded
-copy until the next pull.
-
+- Open interest changes once a day, so through the day only the stock price,
+  implied volatility and time move the chart.
 #### Live price
 
 The card can follow the stock's trades as they happen. Click "Live price"
@@ -175,8 +157,15 @@ shown. Schwab's quotes are real time (measured 2 to 14 seconds behind on
 card's date line names the source. Open interest is still the OCC's: Schwab
 reports none on about a tenth of it, so the page puts in the OCC's numbers it
 already holds (and keeps Schwab's only for an expiration listed since the
-OCC's day). If the service fails, or its last reply is over three minutes old,
-the card goes back to the Cboe snapshot and its date line says why.
+OCC's day). If the service fails, the card
+stays on its last reply, whose date line shows its age, and says why; with no
+reply yet it shows only why.
+
+Until 2026-11-20 a workflow also pulled Cboe's 15-minute-delayed chain every
+30 minutes as a fallback. That day Cboe moved the feed behind Cloudflare,
+which refuses scripts, and the fallback was dropped. `nvda_gex.py` still turns
+a chain into the card's snapshot for the live service; its own Cboe pull no
+longer works.
 
 - One expiration is one Schwab call, under a second. "All expirations" is one
   call for NVDA (3 seconds) and five for SPY, whose whole chain is too big for
@@ -220,9 +209,8 @@ how fresh the chains are and how long the calls take.
 https://kshu231.github.io/nvda-open-interest/ is the same NVDA dashboard,
 hosted by GitHub Pages, and
 https://kshu231.github.io/nvda-open-interest/history_NVDA.html the history;
-`dashboard_SPY.html` and `history_SPY.html` beside them are SPY's. Two GitHub
-Actions workflows keep them current on GitHub's servers; neither depends on
-this Mac. `build_site.sh` gathers every symbol's pages for publishing.
+`dashboard_SPY.html` and `history_SPY.html` beside them are SPY's. A GitHub
+Actions workflow keeps them current on GitHub's servers, not on this Mac. `build_site.sh` gathers every symbol's pages for publishing.
 
 `.github/workflows/daily.yml` ("Daily open interest") pulls the OCC for each
 symbol in turn. A run that finds a new day commits its CSV to `data/` and
@@ -236,36 +224,27 @@ the next open in case the evening missed it. In October 2026 they came out
 between 20:45 and 21:45 Eastern from Monday to Thursday, and between 21:50 and
 23:15 on Fridays, the latest on the monthly expiration of 10/16.
 
-`.github/workflows/gex.yml` ("Gamma exposure refresh") refreshes the gamma
-exposure charts every 30 minutes through the market day. It pulls Cboe for
-each symbol, rebuilds the pages from the saved open interest (`nvda_oi.py
---rebuild`, so the OCC is not asked again) and republishes; a symbol whose
-pull failed keeps the snapshot already published. Outside market hours it does
-nothing, and the daily workflow carries the closing snapshots over when it
-republishes.
-
-To run either on demand: the repository's Actions tab, the workflow's name,
+To run it on demand: the repository's Actions tab, "Daily open interest",
 "Run workflow".
 
 #### What starts them
 
-GitHub's own schedule trigger started runs hours late or not at all, so two
-Google Cloud Scheduler jobs (project `nvda-open-interest`, `us-central1`)
-start the workflows through GitHub's API instead. Both use the time zone
+GitHub's own schedule trigger started runs hours late or not at all, so a
+Google Cloud Scheduler job (project `nvda-open-interest`, `us-central1`)
+starts the workflow through GitHub's API instead. It uses the time zone
 `America/New_York`, an HTTP `POST` target, and the headers
 `Authorization: Bearer TOKEN`, `Accept: application/vnd.github+json` and
 `Content-Type: application/json`.
 
 | Job | Frequency | URL ends in | Body |
 |---|---|---|---|
-| `nvda-open-interest` | `15,45 9-16 * * 1-5` | `gex.yml/dispatches` | `{"ref":"main"}` |
 | `nvda-oi-daily` | `*/10 8,20-23 * * 1-5` | `daily.yml/dispatches` | `{"ref":"main","inputs":{"timer":"true"}}` |
 
 The URLs begin
 `https://api.github.com/repos/kshu231/nvda-open-interest/actions/workflows/`.
 `TOKEN` is a fine-grained GitHub personal access token limited to this
 repository with Actions set to read and write. It lives only in the scheduler
-jobs. GitHub answers `204` when a run has been started.
+job. GitHub answers `204` when a run has been started.
 
 - The `timer` input tells the daily workflow not to republish when the OCC
   has nothing new, which is most firings.
@@ -276,8 +255,6 @@ jobs. GitHub answers `204` when a run has been started.
   every 10 minutes, the row shows which firing first found the day's numbers,
   and the firing before it is the last one that did not. Use it to narrow the
   job's hours.
-- The first job's 9:15 and 16:45 firings fall outside market hours and end
-  without publishing.
 - `gcloud scheduler jobs update http --update-headers` replaces every header,
   so restate all three when changing one.
 
@@ -295,12 +272,8 @@ jobs. GitHub answers `204` when a run has been started.
 - Only standard listed options (product symbol equal to the underlying) are
   counted. FLEX series (`1NVDA`, `2NVDA`) are excluded and their size is shown
   on the "Excluded" line.
-- `https://cdn.cboe.com/api/global/delayed_quotes/options/NVDA.json` is the
-  feed behind Cboe's own delayed quotes page: the stock price and, for every
-  listed contract, bid/ask, implied volatility, greeks, volume and open
-  interest. It is undocumented and could change without notice. Its open
-  interest is the OCC's; each `nvda_gex.py` run reports whether it still
-  matches the newest saved OCC day.
+- Schwab's Trader API (`https://api.schwabapi.com/marketdata/v1/chains`)
+  gives the gamma exposure card its live quotes; see "Live quotes from Schwab".
 
 Because series-search carries no date, the script cross-checks it against saved
 history: if the OCC's date has moved on but the series data is identical to the
@@ -319,7 +292,7 @@ revised it.
 ## Schedule (macOS)
 
 Optional, and not what keeps the hosted site current: the Google Cloud
-Scheduler jobs above start the GitHub workflows, which pull every symbol. This
+Scheduler job above starts the GitHub workflow, which pulls every symbol. This
 is for pulling into a Mac's own copy of the repository.
 
 A LaunchAgent (`~/Library/LaunchAgents/com.nvda-oi.daily.plist`) runs

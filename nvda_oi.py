@@ -583,11 +583,6 @@ def write_page(template: Path, symbol: str, payload: dict, path: Path) -> None:
 def save_dashboard(symbol, asof_label, all_rows, warning, path: Path) -> None:
     """Write the interactive page: the template with the whole chain embedded.
     `asof_label` is the page's date line, "Tue 2026-10-27 close"."""
-    # The gamma exposure snapshot is nvda_gex.py's; the page goes without until one exists.
-    try:
-        gex = json.loads(gex_path_for(symbol).read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        gex = None
     write_page(DASHBOARD_TEMPLATE, symbol, {
         "symbol": symbol,
         "asof": asof_label,
@@ -595,8 +590,6 @@ def save_dashboard(symbol, asof_label, all_rows, warning, path: Path) -> None:
         "historyPage": page_path("history", symbol).name,
         "symbolPages": symbol_pages("dashboard", symbol),
         "rows": all_rows,
-        "gex": gex,
-        "gexFile": gex_path_for(symbol).name,
         "liveApi": LIVE_API,
     }, path)
 

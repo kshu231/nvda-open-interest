@@ -13,7 +13,7 @@ on:
         default: false
   push:
     branches: [main]
-    paths: ["nvda_oi.py", "nvda_gex.py", "dashboard_template.html", "history_template.html",
+    paths: ["nvda_oi.py", "dashboard_template.html", "history_template.html",
             "build_site.sh", ".github/workflows/daily.yml"]
 
 concurrency:
@@ -34,17 +34,10 @@ jobs:
       - name: Pull open interest from the OCC
         id: pull
         run: |
-          site="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}"
           new=false
           failed=""
           for symbol in $(python3 -c 'import nvda_oi; print(*nvda_oi.SYMBOLS)'); do
             echo "::group::$symbol"
-            # The gamma exposure snapshot goes first so the page built next embeds
-            # it. With the market closed there is nothing new to pull, so the
-            # snapshot already published is carried over. The page works without one.
-            python3 nvda_gex.py --symbol "$symbol" --if-open \
-              || { curl -fsS "$site/gex_$symbol.json" -o published.json && mv published.json "gex_$symbol.json"; } \
-              || echo "No $symbol gamma exposure snapshot this run."
             set +e
             python3 nvda_oi.py --symbol "$symbol" --csv --force --no-chart
             code=$?
