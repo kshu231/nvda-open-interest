@@ -112,3 +112,12 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-23,SPY,2026-11-23,710,C+P,12113,,4,,,,
 2026-11-23,SPY,2026-11-23,715,C+P,10892,,5,,,,above spot: 725C 8.7K / 730C 7.8K
 2026-11-23,NVDA,2026-11-23,160,C+P,16257,,1,,,,165C 10.2K / 162.5C 5.1K / 167.5C 3.3K
+2026-11-23,SPY,2026-11-23,715,C+P,10892,,5,yes,09:41,broken then reclaimed (support),LOD 713.54 at 09:41 then gap-up trend resumed
+2026-11-23,SPY,2026-11-23,720,C+P,15488,476473,3,yes,11:46/12:47,held (pivot/support),afternoon range 719.7-725 around 720-724
+2026-11-23,SPY,2026-11-23,725,C,8730,483394,extra,yes,"10:20,13:20,13:25",broken 10:20 (HOD 727.98) then held x2 as resistance,vol wall 42x; source Schwab live service
+2026-11-23,SPY,2026-11-23,730,C,7815,,extra,no,,untested,HOD 727.98
+2026-11-23,SPY,2026-11-23,700/705/710,C+P,,,1-4,no,,untested,
+2026-11-23,SPY,2026-11-23,MAGNET1445,,,,,,14:45,723 (C254K/P341K); spot 721.10 (-1.90),PIN SAMPLE "all except VIX": 1σ 3.13@11:01 -> 2.56 (-18%); VIX 26.6; range 719.7-725 since 11:00; P(±1.5)~30%; note: call vol/OI>=10x flagged 14 strikes on this day -> criterion too loose on big-volume days
+2026-11-23,NVDA,2026-11-23,160,C+P,16257,324499,1,yes,09:41,broken then reclaimed,LOD 156.93
+2026-11-23,NVDA,2026-11-23,170,C,11171,,extra,yes,10:25,pierced (171.50) then held as resistance,170C vol 441K (40x OI)
+2026-11-23,NVDA,2026-11-23,MAGNET1445,,,,,,14:45,165 (C294K/P288K); spot 164.15 (-0.85),P(±0.75)~22%; 1σ 3.01 -> 2.57
