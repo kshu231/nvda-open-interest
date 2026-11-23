@@ -103,3 +103,6 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-20,NVDA,2026-11-20,MAGNET1445,,,,,,14:45,n/a; spot 129.86 (near 130P 18.5K),-11.0% day; 1σ 2.6 -> 3.63
 2026-11-20,SPY,2026-11-20,CLOSE,,,,,,16:00,close 690.87 (-3.49%),14:45 magnet n/a (695P nearest) -> miss 4.7; 690P 29K was close-by wall
 2026-11-20,NVDA,2026-11-20,CLOSE,,,,,,16:00,close 125.53 (-14.0%),130P/125P walls; close at 125P
+2026-11-20,SPY,2026-11-20,CLOSE-REV,,,,,,16:00,Yahoo daily revised close 689.81 (earlier 690.87),
+2026-11-23,SPY,2026-11-23,NO-OI,,,,,,09:50,no OI data: Cboe 403 (Cloudflare) and site gex_*.json 404; gap +4.7% open 722.33 -> 719.37 at 09:50; VIX 27.1 (-27%),news: NVDA board reinstated Jensen Huang as CEO
+2026-11-23,NVDA,,NO-OI,,,,,,09:50,no OI data; NVDA 164.62 (+31%) on Huang reinstatement; open 162.96 HOD 167.17 LOD 156.93,
