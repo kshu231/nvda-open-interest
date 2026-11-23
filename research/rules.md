@@ -2,6 +2,12 @@
 
 Adopted by the owner; each daily review applies these. Newest first.
 
+## Data sources (2026-11-23, owner approved)
+- Live chain: the owner's Schwab live service, `GET https://schwab-live-622871132346.us-central1.run.app/chain?symbol=SPY&expiry=YYYY-MM-DD` (or `expiry=all`). Reply: `spot`, `quoteTime`, `rate`, `expiries[].{date,t,rows}`; each row `[strike, callOI, putOI, callVol, putVol, iv]`. No bid/ask: price spreads with Black-Scholes from the row IV and say they are model mids; the owner checks the real fill. Call it sparingly (the service caps Schwab calls at 60/min for all pages); one call per expiry per review.
+- Opening OI: OCC end-of-day files on main, `git show origin/main:data/<SYM>_oi_<YYYYMMDD>.csv` (`expiry,strike,side,oi`).
+- Cboe delayed quotes are behind Cloudflare since 2026-11-20: do not work around it.
+- Intraday prices: Yahoo chart API.
+
 ## 2026-11-20 (from week of 11/16 review)
 1. VIX >= 25: no put credit spreads at all; only call credit spreads above a tested resistance. Suggest half size.
 2. Prefer tested resistance: a broken big OI strike, or a strike whose day volume is >= 10x its OI, retested from below with an upper wick -> sell a 1-wide call spread above it.
