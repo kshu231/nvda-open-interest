@@ -106,3 +106,9 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-20,SPY,2026-11-20,CLOSE-REV,,,,,,16:00,Yahoo daily revised close 689.81 (earlier 690.87),
 2026-11-23,SPY,2026-11-23,NO-OI,,,,,,09:50,no OI data: Cboe 403 (Cloudflare) and site gex_*.json 404; gap +4.7% open 722.33 -> 719.37 at 09:50; VIX 27.1 (-27%),news: NVDA board reinstated Jensen Huang as CEO
 2026-11-23,NVDA,,NO-OI,,,,,,09:50,no OI data; NVDA 164.62 (+31%) on Huang reinstatement; open 162.96 HOD 167.17 LOD 156.93,
+2026-11-23,SPY,2026-11-23,700,C+P,21255,,1,,,,OI from repo data/SPY_oi_20261120.csv (OCC EOD 11/20; site gex_*.json was retired 11/20 #14); MaxPain 706; spot at 11:46 719.84
+2026-11-23,SPY,2026-11-23,705,C+P,15624,,2,,,,
+2026-11-23,SPY,2026-11-23,720,C+P,15488,,3,,,,nearest to spot; afternoon magnet candidate
+2026-11-23,SPY,2026-11-23,710,C+P,12113,,4,,,,
+2026-11-23,SPY,2026-11-23,715,C+P,10892,,5,,,,above spot: 725C 8.7K / 730C 7.8K
+2026-11-23,NVDA,2026-11-23,160,C+P,16257,,1,,,,165C 10.2K / 162.5C 5.1K / 167.5C 3.3K
