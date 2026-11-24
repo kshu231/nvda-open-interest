@@ -121,3 +121,11 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-23,NVDA,2026-11-23,160,C+P,16257,324499,1,yes,09:41,broken then reclaimed,LOD 156.93
 2026-11-23,NVDA,2026-11-23,170,C,11171,,extra,yes,10:25,pierced (171.50) then held as resistance,170C vol 441K (40x OI)
 2026-11-23,NVDA,2026-11-23,MAGNET1445,,,,,,14:45,165 (C294K/P288K); spot 164.15 (-0.85),P(±0.75)~22%; 1σ 3.01 -> 2.57
+2026-11-23,SPY,2026-11-23,CLOSE,,,,,,16:00,close 722.29,14:45 magnet 723 -> HIT within $1 (0.71); PIN SAMPLE all-except-VIX (VIX 26.6) -> hit
+2026-11-23,NVDA,2026-11-23,CLOSE,,,,,,16:00,close 165.05,14:45 magnet 165 -> HIT (0.05)
+2026-11-24,SPY,2026-11-24,730,C+P,11656,,1,,,,OCC OI 11/23 EOD; open 714.64 (-1.06% gap) -> 719.72 at 09:51 (+2.9σ); MaxPain 722; netGEX -0.24B (row IV); 1sd ±8.9; VIX 29.4
+2026-11-24,SPY,2026-11-24,740,C+P,11077,,2,,,,
+2026-11-24,SPY,2026-11-24,725,C+P,10134,,3,,,,
+2026-11-24,SPY,2026-11-24,705,C+P,8758,,4,,,,
+2026-11-24,SPY,2026-11-24,715,C+P,8603,,5,,,,also 700P 7.2K; 720 = top call volume so far (C39K)
+2026-11-24,NVDA,2026-11-27,160,C+P,47453,,1,,,,no NVDA 11/24 expiry; nearest used = 11/27; spot 156.4 (-5.2%); 157.5C 18.7K; 155 C10.7K/P9.2K
