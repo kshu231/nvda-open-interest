@@ -145,3 +145,11 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-25,NVDA,2026-11-25,140,C+P,24099,,1,,,,140P 20.7K largest; spot 142.13 (-8.5%); MaxPain 152.5; 1sd ±5.9
 2026-11-25,NVDA,2026-11-25,145,C+P,13001,,2,,,,145P 10.8K
 2026-11-25,NVDA,2026-11-25,143,C+P,7437,,3,,,,
+2026-11-25,SPY,2026-11-25,700,C+P,15771,555188,1,yes,AM,pivot/magnet AM then left behind,AM range 695.5-705 around 700; 12:05 breakout
+2026-11-25,SPY,2026-11-25,695,P,6001,,4,yes,09:45,held (support),LOD 695.47
+2026-11-25,SPY,2026-11-25,705,C (vol wall),1271,357833,extra,yes,10:06,held AM (705.05) then broken 12:15,vol wall broken in PM uptrend
+2026-11-25,SPY,2026-11-25,715/717/718,C+P,,,2-5,yes,13:20-14:31,715 broken; 718.43 HOD just under prior close 718.78 (gap not filled),PM uptrend +$22 from LOD
+2026-11-25,SPY,2026-11-25,MAGNET1445,,,,,,14:45,nearest big vol 715 (C231K/P100K); spot 715.89 (+0.89); day magnet 700 (555K) far,trend day (reversal up): 1σ 1.96@12:05 -> 6.68; VIX 27.9; not a pin sample
+2026-11-25,NVDA,2026-11-25,140,P,24099,,1,no,,untested (LOD 141.17),
+2026-11-25,NVDA,2026-11-25,145,C+P,13001,257765,2,yes,10:00/13:00,held AM (145.98) then broken PM,
+2026-11-25,NVDA,2026-11-25,MAGNET1445,,,,,,14:45,150 (C184K vol); spot 148.02 (-1.98); 144/145 biggest total,PM reversal +7.6 from LOD
