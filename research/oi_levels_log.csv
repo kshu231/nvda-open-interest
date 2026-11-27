@@ -162,3 +162,9 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-27,SPY,2026-11-27,710/705,P,,,5,,,,710P 19.5K / 705P 21.0K; puts +22.7K at 690, +13.6K at 700 overnight
 2026-11-27,NVDA,2026-11-27,150,C+P,35676,,1,,,,spot 147.03; 145P 20.4K; MaxPain 150; 1sd ±4.3
 2026-11-27,NVDA,2026-11-27,145,C+P,29345,,2,,,,
+2026-11-27,SPY,2026-11-27,725,C+P,32180,~490000,2,yes,"09:30,10:46",held twice as resistance then broken 11:30 -> support,725C vol 300K; HOD 729.15
+2026-11-27,SPY,2026-11-27,720,C+P,31726,,3,yes,10:05,held (support),LOD 719.61
+2026-11-27,SPY,2026-11-27,726,C (vol wall),9834,~381000,extra,yes,11:30-11:45,broken (uptrend),
+2026-11-27,SPY,2026-11-27,730/735,C,,,1/4,no,,untested (HOD 729.15),
+2026-11-27,SPY,2026-11-27,CLOSE,,,,,,13:00,close 728.32 (half day; +1.62%),11:45 magnet 725 -> miss 3.32 (late grind up); netGEX +1.95B did not pin
+2026-11-27,NVDA,2026-11-27,CLOSE,,,,,,13:00,close 150.49 (+0.8%),11:45 magnet 150 -> HIT ±0.5 (0.49); 150 C+P OI 35.7K biggest
