@@ -153,3 +153,12 @@ date,symbol,expiry,strike,type,oi_open,day_volume,rank_near_spot,tested,tested_t
 2026-11-25,NVDA,2026-11-25,140,P,24099,,1,no,,untested (LOD 141.17),
 2026-11-25,NVDA,2026-11-25,145,C+P,13001,257765,2,yes,10:00/13:00,held AM (145.98) then broken PM,
 2026-11-25,NVDA,2026-11-25,MAGNET1445,,,,,,14:45,150 (C184K vol); spot 148.02 (-1.98); 144/145 biggest total,PM reversal +7.6 from LOD
+2026-11-25,SPY,2026-11-25,CLOSE,,,,,,16:00,close 716.70,14:45 nearest-vol 715 -> 1.70 (miss at ±1.5)
+2026-11-25,NVDA,2026-11-25,CLOSE,,,,,,16:00,close 149.30,14:45 magnet 150 -> HIT ±0.75 (0.70)
+2026-11-27,SPY,2026-11-27,730,C+P,48789,,1,,,,HALF DAY (1pm close); OCC OI 11/25 EOD; open 725.20 (+1.2%) HOD 726.09 at open -> 722.09 at 09:50; MaxPain 717; netGEX +1.95B (row IV); 1sd ±5.9; VIX 26.75
+2026-11-27,SPY,2026-11-27,725,C+P,32180,,2,,,,725C +13.6K overnight
+2026-11-27,SPY,2026-11-27,720,C+P,31726,,3,,,,
+2026-11-27,SPY,2026-11-27,735,C,29143,,4,,,,
+2026-11-27,SPY,2026-11-27,710/705,P,,,5,,,,710P 19.5K / 705P 21.0K; puts +22.7K at 690, +13.6K at 700 overnight
+2026-11-27,NVDA,2026-11-27,150,C+P,35676,,1,,,,spot 147.03; 145P 20.4K; MaxPain 150; 1sd ±4.3
+2026-11-27,NVDA,2026-11-27,145,C+P,29345,,2,,,,
